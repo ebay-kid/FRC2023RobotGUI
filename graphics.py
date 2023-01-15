@@ -17,6 +17,10 @@ new_frame_time = 0
 gameScale = 1
 latestX = 0
 latestY = 0
+user32 = ctypes.windll.user32
+user32.SetProcessDPIAware()
+screenWidth = user32.GetSystemMetrics(0)
+screenHeight = user32.GetSystemMetrics(1)
 
 
 if(usingNetworkTables):
@@ -60,17 +64,19 @@ def flat_img(mat):
 
 def zoom_image(width,height,zoomX,zoomY,factor):
     scalechange = factor - 1;
+    invertFactor = 2 - factor;
     offsetX = -(zoomX * scalechange);
     offsetY = -(zoomY * scalechange);
     adjustedWidth = width * factor
     adjustedHeight = height * factor
 
     dpg.set_item_height("drawlist", height)
-    dpg.set_item_width("drawlist", width)
+    dpg.set_item_width("drawlist", screenWidth/3)
     if dpg.does_alias_exist:
         dpg.delete_item("drawlist", children_only=True)
-    dpg.draw_image("game field", (offsetX, offsetY), (adjustedWidth, adjustedHeight), uv_min=(0, 0), uv_max=(1, 1), parent="drawlist")
-    dpg.draw_image("robot texture", (robotX-64, robotY-64), (robotX+64, robotY+64), uv_min=(0, 0), uv_max=(1, 1), parent="drawlist")
+    dpg.draw_image("game field", (offsetX, offsetY), (offsetX+adjustedWidth, offsetY+adjustedHeight), uv_min=(0, 0), uv_max=(1,1), parent="drawlist")
+    dpg.draw_image("robot texture", ((robotX-64)*(1-scalechange/2), (robotY-64)*(1-scalechange/2)), ((robotX+64)*(1+scalechange/2), (robotY+64)*(1+scalechange/2)), uv_min=(0, 0), uv_max=(1, 1), parent="drawlist")
+    print(adjustedWidth,adjustedHeight)
 
 def createTrajectory():
     global latestX
@@ -80,10 +86,6 @@ def createTrajectory():
     generateTrajectoryVector(robotX,robotY,latestX,latestY)
 
 def main():
-    user32 = ctypes.windll.user32
-    user32.SetProcessDPIAware()
-    screenWidth = user32.GetSystemMetrics(0)
-    screenHeight = user32.GetSystemMetrics(1)
 
     #always create context first
     dpg.create_context()
@@ -110,7 +112,7 @@ def main():
 
     #create viewport
     dpg.create_viewport(title='Team 3952', width=screenWidth, height=screenHeight)
-    dpg.set_viewport_vsync(False)
+    #dpg.set_viewport_vsync(False)
     dpg.setup_dearpygui()
     dpg.toggle_viewport_fullscreen()
     dpg.set_global_font_scale(3)
@@ -130,11 +132,11 @@ def main():
     #create window
     with dpg.window(tag="Window1"):
         dpg.set_primary_window("Window1", True)
-        with dpg.drawlist(tag="drawlist", width=width, height=height, parent="Window1"):
+        with dpg.drawlist(tag="drawlist", width=screenWidth/3, height=height, parent="Window1"):
             dpg.draw_image("game field", (0, 0), (width, height), uv_min=(0, 0), uv_max=(1, 1))
             dpg.draw_image("robot texture", (robotX-64, robotY-64), (robotX+64, robotY+64), uv_min=(0, 0), uv_max=(1, 1))
 
-    with dpg.window(tag="ctlwindow", label="", no_close=True, min_size=(450,250), pos=(width+20,10)):
+    with dpg.window(tag="ctlwindow", label="", no_close=True, min_size=(450,250), pos=(screenWidth/3+20,10)):
         fpsTag = dpg.add_text("FPS 0")
         scaleTag = dpg.add_text("SCALE 1x")
         robotCoordTag = dpg.add_text("ROBOT: X 0 Y 0")
