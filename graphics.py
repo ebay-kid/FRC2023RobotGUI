@@ -44,10 +44,11 @@ if(usingNetworkTables):
     # Insert your processing code here
     print("Connected!")
 
-#Initialize Values using NetworkTables
+#Initialize and Values using NetworkTables
 teamColor = False #True = Blue, False = Red
-robotX = 400
-robotY = 500
+robotX = 80
+robotY = 80
+robotAngle = 0
 
 def updateFps():
     global new_frame_time
@@ -69,21 +70,22 @@ def zoom_image(width,height,zoomX,zoomY,factor):
     offsetY = -(zoomY * scalechange);
     adjustedWidth = width * factor
     adjustedHeight = height * factor
+    robotSize = (128 * factor) / 2 
 
     dpg.set_item_height("drawlist", height)
     dpg.set_item_width("drawlist", screenWidth/3)
     if dpg.does_alias_exist:
         dpg.delete_item("drawlist", children_only=True)
     dpg.draw_image("game field", (offsetX, offsetY), (offsetX+adjustedWidth, offsetY+adjustedHeight), uv_min=(0, 0), uv_max=(1,1), parent="drawlist")
-    dpg.draw_image("robot texture", ((robotX-64)*(1-scalechange/2), (robotY-64)*(1-scalechange/2)), ((robotX+64)*(1+scalechange/2), (robotY+64)*(1+scalechange/2)), uv_min=(0, 0), uv_max=(1, 1), parent="drawlist")
+    dpg.draw_image("robot texture", (robotX-robotSize, robotY-robotSize), (robotX+robotSize, robotY+robotSize), uv_min=(0, 0), uv_max=(1, 1), parent="drawlist")
     print(adjustedWidth,adjustedHeight)
 
 def createTrajectory():
     global latestX
     global latestY
-    latestX = max(pyautogui.position()[0] - 7,0)
-    latestY = max(1334 - pyautogui.position()[1],0)
-    generateTrajectoryVector(robotX,robotY,latestX,latestY)
+    latestX = max(pyautogui.position()[0],0)
+    latestY = max(pyautogui.position()[1],0)
+    print(generateTrajectoryVector(robotX,robotY,robotAngle,latestX,latestY,0))
 
 def main():
 
@@ -152,8 +154,8 @@ def main():
     while dpg.is_dearpygui_running():
         dpg.set_value(fpsTag,updateFps())
         dpg.set_value(scaleTag,"SCALE " + str(round(gameScale,2)) + "x")
-        dpg.set_value(robotCoordTag,"ROBOT: X "+str(robotX)+" Y "+str(robotY))
-        dpg.set_value(mouseCoordTag,"GOAL: X "+str(latestX)+" Y "+str(latestY))
+        dpg.set_value(robotCoordTag,"ROBOT: X "+str(robotX)+" Y "+str(1334-robotY))
+        dpg.set_value(mouseCoordTag,"GOAL: X "+str(latestX)+" Y "+str(1334-latestY))
         dpg.render_dearpygui_frame()                      
 
     dpg.destroy_context()
