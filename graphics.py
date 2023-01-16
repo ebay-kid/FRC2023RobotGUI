@@ -1,5 +1,8 @@
 import threading
-from networktables import NetworkTables
+import ntcore
+import argparse
+from os.path import basename
+import logging
 import dearpygui.dearpygui as dpg
 import time 
 import numpy as np
@@ -38,26 +41,31 @@ bDraw = [0] * 2 #background
 rDraw = [0] * 2 #robot
 
 #Connect to NetworkTables
-if USINGNETWORKTABLES:
-    cond = threading.Condition()
-    notified = [False]
+if USINGNETWORKTABLES and __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-p",
+        "--protocol",
+        type=int,
+        choices=[3, 4],
+        help="NT Protocol to use",
+        default=4,
+    )
+    parser.add_argument("ip", type=str, help="IP address to connect to")
+    args = parser.parse_args()
 
-    def connectionListener(connected, info):
-        print(info, '; Connected=%s' % connected)
-        with cond:
-            notified[0] = True
-            cond.notify()
+    inst = ntcore.NetworkTableInstance.getDefault()
 
-    NetworkTables.initialize(server='10.39.52.2')
-    NetworkTables.addConnectionListener(connectionListener, immediateNotify=True)
+    identity = basename(__file__)
+    if args.protocol == 3:
+        inst.startClient3(identity)
+    else:
+        inst.startClient4(identity)
 
-    with cond:
-        print("Waiting")
-        if not notified[0]:
-            cond.wait()
+    inst.setServer(args.ip)
 
-    # Insert your processing code here
-    print("Connected!")
+    sd = inst.getTable("FMSInfo")
 
 #Initialize and Values using NetworkTables
 teamColor = False #True = Blue, False = Red
