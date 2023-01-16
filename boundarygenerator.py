@@ -1,57 +1,59 @@
 from PIL import Image
 import numpy as np
-yay = np.array(Image.open("epic_gaiming.png"))
-new = np.zeros((len(yay),len(yay[0])),dtype=bool)
-new2 = np.zeros((len(yay),len(yay[0])),dtype=bool)
+img = np.array(Image.open("epic_gaiming.png"))
+
+# one means it's legal to go through, 0 means not legal
+new1 = np.ones((len(img),len(img[0])),dtype=bool)
+new2 = np.ones((len(img[0]),len(img)),dtype=bool)
+
+bounds = []
+boundsRot = []
 
 DRIVETRAINPIXELADD = 55
 
-for i in range(len(yay)):
-    for j in range(len(yay[0])):
-        if yay[i][j][3] == 0:
-            new[i][j] = True
-        else:
-            new[i][j] = False
+# iterate through each pixel of numpy image "yay", and if the pixel is transparent, then set the corresponding index in the numpy array "new" to 0. Otherwise, set it to 1.
+def yayChecker(yay, new):
+    for i in range(len(yay)):
+        prevTrueIdx = -1
+        for j in range(len(yay[0])):
+            if yay[i][j][3] == 0:
+                if prevTrueIdx == -1:
+                    prevTrueIdx = j
+                new[i][j] = 0
+            else:
+                if prevTrueIdx != -1:
+                    bounds.append((i,prevTrueIdx,j))
+                    prevTrueIdx = -1
+                new[i][j] = 1
 
-for k in range(DRIVETRAINPIXELADD):
-    for i in range(len(new)):
-        for j in range(len(new[0])):
-            if i+1 < len(new) and new[i+1][j]:
-                new[i][j] = True
-                continue
-            if i-1 >= 0 and new[i-1][j]:
-                new[i][j] = True
-                continue
-            if j+1 < len(new[0]) and new[i][j+1]:
-                new[i][j] = True
-                continue
-            if j-1 >= 0 and new[i][j-1]:
-                new[i][j] = True
-                continue
-            if i+1 < len(new) and j+1 < len(new[0]) and new[i+1][j+1]:
-                new[i][j] = True
-                continue
-            if i-1 >= 0 and j+1 < len(new[0]) and new[i-1][j+1]:
-                new[i][j] = True
-                continue
-            if i+1 < len(new) and j-1 > 0 and new[i+1][j-1]:
-                new[i][j] = True
-                continue
-            if j-1 >= 0 and i-1 >= 0 and new[i-1][j-1]:
-                new[i][j] = True
-                continue
+yayChecker(img, new1)
+rotated = np.rot90(img)
+yayChecker(rotated, new2)
 
+# given the index bounds of areas that should be set to 0, set the indices within DRIVETRAINPIXELADD before the start index to 0, and the indices after the start index by DRIVETRAINPIXELADD to 0 as well.
+def setThingsToZero(bounds, new):
+    for i in bounds:
+        for j in range(i[1]-DRIVETRAINPIXELADD,i[1]):
+            new[i[0]][j] = 0
+        for j in range(i[2],i[2]+DRIVETRAINPIXELADD):
+            new[i[0]][j] = 0
 
-for i in range(len(new2)):
-    for j in range(len(new2[0])):
-        if new[i][j]:
-            new2[i][j] = (0,0,0,0)
-        else:
-            new2[i][j] = (255,255,255,255)
+newNew2 = np.rot90(new2, k=3)
+newImg = np.logical_or(new1, newNew2)
 
-img = Image.fromarray(new2)
-img.save("dady.png")
+# set all True values in the array to 1, all False to 0.
+# newImg = new1.astype(int)
+
+"""
+for i in newImg:
+    temp = ""
+    for j in i:
+        temp += str(int(j))
+    print(temp)
+"""
+#img = Image.fromarray(new2)
+#img.save("dady.png")
 
 
-#with open('boundariesTEST.npy', 'wb') as f:
-#    np.save(f, new)
+with open('boundariesBalls.npy', 'wb') as f:
+    np.save(f, newImg)
