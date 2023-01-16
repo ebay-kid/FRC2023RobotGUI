@@ -35,7 +35,7 @@ scaleTag = 0
 mouseCoordTag = 0
 
 #dynamically updating global variables
-trajectoryCoords = np.zeros((0,0))
+trajectoryCoords = np.zeros((500,500))
 latestX = 0
 latestY = 0
 gameScale = 1
@@ -133,7 +133,7 @@ def createTrajectory():
         tempAngle = robotAngle+90
     else:
         tempAngle = robotAngle-90
-    trajectoryCoords = generateTrajectoryVector(robotX,robotY,tempAngle,latestX,latestY,0)
+    trajectoryCoords = generateTrajectoryVector(robotX,robotY,tempAngle,latestX,latestY)
     update_graphics()
 
 #main APP CONTROL
