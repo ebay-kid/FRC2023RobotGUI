@@ -1,4 +1,3 @@
-import threading
 import ntcore
 import argparse
 from os.path import basename
