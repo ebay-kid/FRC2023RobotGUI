@@ -29,8 +29,13 @@ ROBOTHEIGHT = 64
 FIELDWIDTH = 660
 FIELDHEIGHT = 1305
 
+#Global Tags
+robotCoordTag = 0
+scaleTag = 0 
+mouseCoordTag = 0
+
 #dynamically updating global variables
-trajectoryCoords = []
+trajectoryCoords = np.zeros((0,0))
 latestX = 0
 latestY = 0
 gameScale = 1
@@ -70,7 +75,7 @@ if USINGNETWORKTABLES and __name__ == "__main__":
 #Initialize and Values using NetworkTables
 teamColor = False #True = Blue, False = Red
 robotX = 200
-robotY = 200
+robotY = 800
 robotAngle = 0
 
 #update FPS
@@ -109,15 +114,21 @@ def update_graphics():
 
 #apply zoom to coordinate
 def zoom_coordinate(x,y,zoomX,zoomY,factor):
-    return x,y
+    return x+(x-zoomX)*(factor-1),y+(y-zoomY)*(factor-1)
+
+#apply reverse zoom
+def reverse_zoom(x,y,zoomX,zoomY,factor):
+    return (x + (factor-1) * zoomX)/factor, (y + (factor-1) * zoomY)/factor
 
 #create trajectory
 def createTrajectory():
     global trajectoryCoords
     global latestX
     global latestY
-    latestX = max(pyautogui.position()[0],0)
-    latestY = max(pyautogui.position()[1],0)
+    latestX,latestY = reverse_zoom(max(pyautogui.position()[0]-10,0),max(pyautogui.position()[1]-25,0),robotX,robotY,gameScale)
+
+    dpg.set_value(mouseCoordTag,"GOAL: X "+str(latestX)+" Y "+str(1334-latestY))
+
     if(robotY < latestY):
         tempAngle = robotAngle+90
     else:
@@ -164,6 +175,7 @@ def main():
             gameScale = 1.0
         else:
             update_graphics()
+        dpg.set_value(scaleTag,"SCALE " + str(round(gameScale,2)) + "x")
 
     #basically an event handler
     with dpg.handler_registry():
@@ -179,6 +191,9 @@ def main():
 
     #create window for text 
     with dpg.window(tag="ctlwindow", label="", no_close=True, min_size=(450,250), pos=(SCREENWIDTH/3+20,10)):
+        global mouseCoordTag
+        global robotCoordTag
+        global scaleTag
         fpsTag = dpg.add_text("FPS 0")
         scaleTag = dpg.add_text("SCALE 1x")
         robotCoordTag = dpg.add_text("ROBOT: X 0 Y 0")
@@ -192,9 +207,8 @@ def main():
     #run program
     while dpg.is_dearpygui_running():
         dpg.set_value(fpsTag,updateFps())
-        dpg.set_value(scaleTag,"SCALE " + str(round(gameScale,2)) + "x")
-        dpg.set_value(robotCoordTag,"ROBOT: X "+str(robotX)+" Y "+str(1334-robotY))
-        dpg.set_value(mouseCoordTag,"GOAL: X "+str(latestX)+" Y "+str(1334-latestY))
+        #dpg.set_value(robotCoordTag,"ROBOT: X "+str(robotX)+" Y "+str(1334-robotY))
+        
         dpg.render_dearpygui_frame()                      
 
     dpg.destroy_context()
