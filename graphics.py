@@ -8,22 +8,37 @@ import ctypes
 from trajectoryHandler import generateTrajectoryVector
 import pyautogui
 
-
-usingNetworkTables = False #am i using network tables
+#intialize user32 to read monitor size
+user32 = ctypes.windll.user32
+user32.SetProcessDPIAware()
 
 #for framerate calculations
 prev_frame_time = 0
 new_frame_time = 0
-gameScale = 1
+
+#Constants
+ENABLEVSYNC = True
+USINGNETWORKTABLES = False
+SCREENWIDTH = user32.GetSystemMetrics(0)
+SCREENHEIGHT = user32.GetSystemMetrics(1)
+ROBOTLENGTH = 64
+ROBOTHEIGHT = 64
+FIELDWIDTH = 660
+FIELDHEIGHT = 1305
+
+#dynamically updating global variables
+trajectoryCoords = []
 latestX = 0
 latestY = 0
-user32 = ctypes.windll.user32
-user32.SetProcessDPIAware()
-screenWidth = user32.GetSystemMetrics(0)
-screenHeight = user32.GetSystemMetrics(1)
+gameScale = 1
 
+#draw coordinate global variables
+tDraw = [] #trajectories
+bDraw = [0] * 2 #background
+rDraw = [0] * 2 #robot
 
-if(usingNetworkTables):
+#Connect to NetworkTables
+if USINGNETWORKTABLES:
     cond = threading.Condition()
     notified = [False]
 
@@ -46,10 +61,11 @@ if(usingNetworkTables):
 
 #Initialize and Values using NetworkTables
 teamColor = False #True = Blue, False = Red
-robotX = 80
-robotY = 80
+robotX = 200
+robotY = 200
 robotAngle = 0
 
+#update FPS
 def updateFps():
     global new_frame_time
     global prev_frame_time
@@ -58,35 +74,50 @@ def updateFps():
     prev_frame_time = new_frame_time
     return "FPS " + str(int(fps))
 
+#flatten image to be used as Texture
 def flat_img(mat):
     mat.putalpha(255)
     dpg_image = np.frombuffer(mat.tobytes(), dtype=np.uint8) / 255.0
     return dpg_image
 
-def zoom_image(width,height,zoomX,zoomY,factor):
-    scalechange = factor - 1;
-    invertFactor = 2 - factor;
-    offsetX = -(zoomX * scalechange);
-    offsetY = -(zoomY * scalechange);
-    adjustedWidth = width * factor
-    adjustedHeight = height * factor
-    robotSize = (128 * factor) / 2 
+#redraw all elements
+def update_graphics():
+    tDraw = np.zeros(np.shape(trajectoryCoords))
+    for i in range(np.shape(trajectoryCoords)[1]):
+        tDraw[0][i],tDraw[1][i] = zoom_coordinate(trajectoryCoords[0][i],trajectoryCoords[1][i],robotX,robotY,gameScale)
+    bDraw[0] = zoom_coordinate(0,0,robotX,robotY,gameScale)
+    bDraw[1] = zoom_coordinate(FIELDWIDTH,FIELDHEIGHT,robotX,robotY,gameScale)
+    rDraw[0] = zoom_coordinate(robotX-ROBOTLENGTH,robotY-ROBOTHEIGHT,robotX,robotY,gameScale)
+    rDraw[1] = zoom_coordinate(robotX+ROBOTLENGTH,robotY+ROBOTHEIGHT,robotX,robotY,gameScale)
 
-    dpg.set_item_height("drawlist", height)
-    dpg.set_item_width("drawlist", screenWidth/3)
+    dpg.set_item_height("drawlist", FIELDHEIGHT)
+    dpg.set_item_width("drawlist", SCREENWIDTH/3)
     if dpg.does_alias_exist:
         dpg.delete_item("drawlist", children_only=True)
-    dpg.draw_image("game field", (offsetX, offsetY), (offsetX+adjustedWidth, offsetY+adjustedHeight), uv_min=(0, 0), uv_max=(1,1), parent="drawlist")
-    dpg.draw_image("robot texture", (robotX-robotSize, robotY-robotSize), (robotX+robotSize, robotY+robotSize), uv_min=(0, 0), uv_max=(1, 1), parent="drawlist")
-    print(adjustedWidth,adjustedHeight)
+    dpg.draw_image("game field", bDraw[0], bDraw[1], uv_min=(0, 0), uv_max=(1,1), parent="drawlist")
+    dpg.draw_image("robot texture", rDraw[0], rDraw[1], uv_min=(0, 0), uv_max=(1, 1), parent="drawlist")
+    for i in range(np.shape(trajectoryCoords)[1]-1):
+        dpg.draw_line((tDraw[0][i],tDraw[1][i]), (tDraw[0][i+1], tDraw[1][i+1]), color=(255, 0, 0, 255), thickness=3, parent="drawlist")
 
+#apply zoom to coordinate
+def zoom_coordinate(x,y,zoomX,zoomY,factor):
+    return x,y
+
+#create trajectory
 def createTrajectory():
+    global trajectoryCoords
     global latestX
     global latestY
     latestX = max(pyautogui.position()[0],0)
     latestY = max(pyautogui.position()[1],0)
-    print(generateTrajectoryVector(robotX,robotY,robotAngle,latestX,latestY,0))
+    if(robotY < latestY):
+        tempAngle = robotAngle+90
+    else:
+        tempAngle = robotAngle-90
+    trajectoryCoords = generateTrajectoryVector(robotX,robotY,tempAngle,latestX,latestY,0)
+    update_graphics()
 
+#main APP CONTROL
 def main():
 
     #always create context first
@@ -94,7 +125,7 @@ def main():
     
     #get image and convert to 1D array to turn into a static texture
     img = Image.open('gamefield.png')
-    robotImg = Image.open('notRobot.png')
+    robotImg = Image.open('robot.png')
     if teamColor:
         img_rotated = img.rotate(90, expand=True)
     else:
@@ -102,19 +133,17 @@ def main():
         
     dpg_image = flat_img(img_rotated)
     dpg_image2 = flat_img(robotImg)
-    width = img_rotated.width;
-    height = img_rotated.height;
     width2 = robotImg.width;
     height2 = robotImg.height;
 
     #load all textures
     with dpg.texture_registry(show=False):
-        dpg.add_static_texture(width=width, height=height, default_value=dpg_image, tag="game field")
+        dpg.add_static_texture(width=FIELDWIDTH, height=FIELDHEIGHT, default_value=dpg_image, tag="game field")
         dpg.add_static_texture(width=width2, height=height2, default_value=dpg_image2, tag="robot texture")
 
     #create viewport
-    dpg.create_viewport(title='Team 3952', width=screenWidth, height=screenHeight)
-    #dpg.set_viewport_vsync(False)
+    dpg.create_viewport(title='Team 3952', width=SCREENWIDTH, height=SCREENHEIGHT)
+    dpg.set_viewport_vsync(ENABLEVSYNC)
     dpg.setup_dearpygui()
     dpg.toggle_viewport_fullscreen()
     dpg.set_global_font_scale(3)
@@ -126,24 +155,26 @@ def main():
         if gameScale < 1.0:
             gameScale = 1.0
         else:
-            zoom_image(width,height,robotX,robotY,gameScale)
+            update_graphics()
+
+    #basically an event handler
     with dpg.handler_registry():
         dpg.add_mouse_wheel_handler(callback=scale_image)
         dpg.add_mouse_click_handler(callback=createTrajectory)
     
-    #create window
+    #create window for drawings and images
     with dpg.window(tag="Window1"):
         dpg.set_primary_window("Window1", True)
-        with dpg.drawlist(tag="drawlist", width=screenWidth/3, height=height, parent="Window1"):
-            dpg.draw_image("game field", (0, 0), (width, height), uv_min=(0, 0), uv_max=(1, 1))
+        with dpg.drawlist(tag="drawlist", width=SCREENWIDTH/3, height=FIELDHEIGHT, parent="Window1"):
+            dpg.draw_image("game field", (0, 0), (FIELDWIDTH, FIELDHEIGHT), uv_min=(0, 0), uv_max=(1, 1))
             dpg.draw_image("robot texture", (robotX-64, robotY-64), (robotX+64, robotY+64), uv_min=(0, 0), uv_max=(1, 1))
 
-    with dpg.window(tag="ctlwindow", label="", no_close=True, min_size=(450,250), pos=(screenWidth/3+20,10)):
+    #create window for text 
+    with dpg.window(tag="ctlwindow", label="", no_close=True, min_size=(450,250), pos=(SCREENWIDTH/3+20,10)):
         fpsTag = dpg.add_text("FPS 0")
         scaleTag = dpg.add_text("SCALE 1x")
         robotCoordTag = dpg.add_text("ROBOT: X 0 Y 0")
         mouseCoordTag = dpg.add_text("GOAL: X 0 Y 0")
-
 
     #show viewport
     dpg.show_viewport()

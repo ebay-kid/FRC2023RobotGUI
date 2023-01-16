@@ -11,19 +11,27 @@ KS_VOLTS = 0.22
 KV_VOLTS_SECONDS_PER_METER = 1.98
 KA_VOLTS_SECONDS_SQ_PER_METER = 0.2
 
-def fastestSplineCoords(startX,startY,startAngle,endX,endY,endAngle):
-    return [geometry.Translation2d(0,-50), geometry.Translation2d(0,50)]
+def calculateWaypoints():
+    return []
 
 
 def getCoords(state):
-    return (state.pose.X(),state.pose.Y())
+    return (meterstoPixels(state.pose.X()),meterstoPixels(state.pose.Y()))
+
+def pixeltoMeters(pixels):
+    return pixels*0.012
+
+def meterstoPixels(meters):
+    return meters/0.012
 
 def generateTrajectoryVector(startX,startY,startAngle,endX,endY,endAngle):
-    startPoint = geometry.Pose2d(startX,startY,geometry.Rotation2d(startAngle))
-    endPoint = geometry.Pose2d(endX,endY,geometry.Rotation2d(endAngle))
-    easePoints = fastestSplineCoords(startX,startY,startAngle,endX,endY,endAngle)
+    startPoint = geometry.Pose2d(pixeltoMeters(startX),pixeltoMeters(startY),geometry.Rotation2d.fromDegrees(startAngle))
+    endPoint = geometry.Pose2d(pixeltoMeters(endX),pixeltoMeters(endY),geometry.Rotation2d.fromDegrees(endAngle))
+    easePoints = calculateWaypoints()
     configSettings = trajectory.TrajectoryConfig(MAX_SPEED_MPS,MAX_ACCELERATION_MPS_SQUARED)
     configSettings.setKinematics(DRIVE_KINEMATICS)
+    #configSettings.setReversed(True);
+
     new_trajectory = trajectory.TrajectoryGenerator.generateTrajectory(
         startPoint,
         easePoints,
@@ -35,3 +43,4 @@ def generateTrajectoryVector(startX,startY,startAngle,endX,endY,endAngle):
     getCoordsVectorized = np.vectorize(getCoords)
     return getCoordsVectorized(states)
     
+print(generateTrajectoryVector(200,200,0,400,700,0))
