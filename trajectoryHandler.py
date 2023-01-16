@@ -1,4 +1,3 @@
-
 import numpy as np
 from wpimath import trajectory, geometry, kinematics
 
