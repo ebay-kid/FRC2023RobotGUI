@@ -41,6 +41,7 @@ def normalizeAngle(angle):
       angle = 0;
     return angle
 
+#this fucking trajectroy code doesn't fucking work i want to die someone please fix this
 def fixBoundaryTrespassing(coords):
     with open('boundariesBalls.npy', 'rb') as f:
         boundaries = np.load(f)
