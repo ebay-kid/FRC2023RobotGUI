@@ -11,7 +11,10 @@ KV_VOLTS_SECONDS_PER_METER = 1.98
 KA_VOLTS_SECONDS_SQ_PER_METER = 0.2
 
 def calculateWaypoints():
+    with open('boundariesTEST.npy', 'rb') as f:
+        boundaries = np.load(f)
     return []
+
 
 
 def getCoords(state):

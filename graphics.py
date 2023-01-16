@@ -202,8 +202,6 @@ def main():
     #show viewport
     dpg.show_viewport()
 
-    scale = 1
-
     #run program
     while dpg.is_dearpygui_running():
         dpg.set_value(fpsTag,updateFps())
