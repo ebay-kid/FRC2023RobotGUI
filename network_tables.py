@@ -2,16 +2,6 @@ import ntcore
 import time
 import threading
 
-def isConnected():
-    """
-    network tables takes like 15 secs to connect to the robot if the robot was already on when this code launched.\n
-    if you just re-deploy code *after* launching this program then the time is only the time to initialize the robot code.\n
-    so just run this program first then initialize robot to save time
-    """
-    DEFAULT_CHECK_STR = "this is not fms info" # This should be a string value that cannot be achieved on the robot and will be present on the robot at any given point
-    # if the robot is connected to the driver station, since this wil be set to something else if connected properly.
-    return inst.getTable("FMSInfo").getEntry(".type").getString(DEFAULT_CHECK_STR) != DEFAULT_CHECK_STR
-
 def waitForConnect():
     """
     Waits for the robot to connect to the driver station.
@@ -23,6 +13,16 @@ def waitForConnect():
 # Initialize ntcore on protocol 4
 inst = ntcore.NetworkTableInstance.getDefault()
 startThread = threading.Thread(target=waitForConnect)
+
+def isConnected():
+    """
+    network tables takes like 15 secs to connect to the robot if the robot was already on when this code launched.\n
+    if you just re-deploy code *after* launching this program then the time is only the time to initialize the robot code.\n
+    so just run this program first then initialize robot to save time
+    """
+    DEFAULT_CHECK_STR = "this is not fms info" # This should be a string value that cannot be achieved on the robot and will be present on the robot at any given point
+    # if the robot is connected to the driver station, since this wil be set to something else if connected properly.
+    return inst.getTable("FMSInfo").getEntry(".type").getString(DEFAULT_CHECK_STR) != DEFAULT_CHECK_STR
 
 def init():
     """
@@ -45,7 +45,7 @@ def getTable(tableName):
     Returns a table from the network tables server.
     """
     if not isConnected():
-        print("Not connected to robot! Returning empty table.")
+        print("Not connected to robot!")
     return inst.getTable(tableName)
 
 def getEntry(tableName, entryName):
@@ -53,15 +53,22 @@ def getEntry(tableName, entryName):
     Returns an entry from a table from the network tables server.
     """
     if not isConnected():
-        print("Not connected to robot! Returning empty entry.")
-    if tableName == "":
-        return inst.getEntry(entryName)
+        print("Not connected to robot!")
     return inst.getTable(tableName).getEntry(entryName)
 
 init()
-while True:
-    time.sleep(0.5)
-    print(getEntry("test", "test").getDouble(0))
+
+def latencyTest():
+    """
+    Use NetworkTables#latencyTesterPeriodicRun() in the periodic of robot to test latency.
+    """
+    entry = getEntry("test", "test")
+    i = 0.1
+    while True:
+        time.sleep(1)
+        i += 0.1
+        entry.setDoubleArray([i, i, i])
+
 #
 # #Get values from NetworkTables
 # robotCoordTag = sd.getEntry("RobotCoord")

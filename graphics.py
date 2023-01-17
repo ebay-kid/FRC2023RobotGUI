@@ -9,6 +9,7 @@ from PIL import Image
 import ctypes
 from trajectoryHandler import generateTrajectoryVector
 import pyautogui
+import network_tables
 
 #intialize user32 to read monitor size
 user32 = ctypes.windll.user32
@@ -43,33 +44,13 @@ gameScale = 1
 tDraw = [] #trajectories
 bDraw = [0] * 2 #background
 rDraw = [0] * 2 #robot
+intersectCoord = (0,0)
 
 #Connect to NetworkTables
 if USINGNETWORKTABLES and __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-p",
-        "--protocol",
-        type=int,
-        choices=[3, 4],
-        help="NT Protocol to use",
-        default=4,
-    )
-    parser.add_argument("ip", type=str, help="IP address to connect to")
-    args = parser.parse_args()
-
-    inst = ntcore.NetworkTableInstance.getDefault()
-
-    identity = basename(__file__)
-    if args.protocol == 3:
-        inst.startClient3(identity)
-    else:
-        inst.startClient4(identity)
-
-    inst.setServer(args.ip)
-
-    sd = inst.getTable("FMSInfo")
+    network_tables.init()
+    while not network_tables.isConnected():
+        time.sleep(0.3)
 
 #Initialize and Values using NetworkTables
 teamColor = False #True = Blue, False = Red
@@ -101,6 +82,7 @@ def update_graphics():
     bDraw[1] = zoom_coordinate(FIELDWIDTH,FIELDHEIGHT,robotX,robotY,gameScale)
     rDraw[0] = zoom_coordinate(robotX-ROBOTLENGTH,robotY-ROBOTHEIGHT,robotX,robotY,gameScale)
     rDraw[1] = zoom_coordinate(robotX+ROBOTLENGTH,robotY+ROBOTHEIGHT,robotX,robotY,gameScale)
+    intersect = zoom_coordinate(intersectCoord[0],intersectCoord[1],robotX,robotY,gameScale)
 
     dpg.set_item_height("drawlist", FIELDHEIGHT)
     dpg.set_item_width("drawlist", SCREENWIDTH/3)
@@ -110,6 +92,8 @@ def update_graphics():
     dpg.draw_image("robot texture", rDraw[0], rDraw[1], uv_min=(0, 0), uv_max=(1, 1), parent="drawlist")
     for i in range(np.shape(trajectoryCoords)[1]-1):
         dpg.draw_line((tDraw[0][i],tDraw[1][i]), (tDraw[0][i+1], tDraw[1][i+1]), color=(255, 0, 0, 255), thickness=3, parent="drawlist")
+    print(intersect)
+    dpg.draw_circle(center=intersect,radius=20,color=(255,255,255,255),parent="drawlist")
 
 #apply zoom to coordinate
 def zoom_coordinate(x,y,zoomX,zoomY,factor):
@@ -121,18 +105,19 @@ def reverse_zoom(x,y,zoomX,zoomY,factor):
 
 #create trajectory
 def createTrajectory():
+    global intersectCoord
     global trajectoryCoords
     global latestX
     global latestY
     latestX,latestY = reverse_zoom(max(pyautogui.position()[0]-10,0),max(pyautogui.position()[1]-25,0),robotX,robotY,gameScale)
 
-    dpg.set_value(mouseCoordTag,"GOAL: X "+str(latestX)+" Y "+str(1334-latestY))
+    dpg.set_value(mouseCoordTag,"GOAL: X "+str(latestX)+" Y "+str(latestY))
 
     if(robotY < latestY):
         tempAngle = robotAngle+90
     else:
         tempAngle = robotAngle-90
-    trajectoryCoords = generateTrajectoryVector(robotX,robotY,tempAngle,latestX,latestY)
+    intersectCoord, trajectoryCoords = generateTrajectoryVector(robotX,robotY,tempAngle,latestX,latestY)
     update_graphics()
 
 #main APP CONTROL
@@ -151,9 +136,8 @@ def main():
         
     dpg_image = flat_img(img_rotated)
     dpg_image2 = flat_img(robotImg)
-    width2 = robotImg.width;
-    height2 = robotImg.height;
-
+    width2 = robotImg.width
+    height2 = robotImg.height
     #load all textures
     with dpg.texture_registry(show=False):
         dpg.add_static_texture(width=FIELDWIDTH, height=FIELDHEIGHT, default_value=dpg_image, tag="game field")
