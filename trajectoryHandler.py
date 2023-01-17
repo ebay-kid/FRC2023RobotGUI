@@ -85,8 +85,7 @@ def generateTrajectoryVector(startX,startY,startAngle,endX,endY):
     coords = generate(startX,startY,startAngle,endX,endY,endAngle) #generate straight line
 
     #keep adding waypoints until robot's path is clear
-    while(True):
-        return fixBoundaryTrespassing(coords), coords
+    return fixBoundaryTrespassing(coords), coords
 
 def uploadStates(traject: trajectory):
     TICK_TIME = 0.02 # 20 ms
