@@ -14,13 +14,15 @@ KA_VOLTS_SECONDS_SQ_PER_METER = 0.2
 
 DEFINED_WAYPOINTS = [
 (383, 159),
-(383, 302),
 (74, 159),
 (74, 425),
-(495, 580),
 (391, 876),
-(531, 1006)
+(531, 1006),
+(54,870),
+(374, 417)
 ]
+#global waypoints visited list
+used_waypoints = np.zeros(len(DEFINED_WAYPOINTS),dtype=bool)
 
 #global Waypoints
 waypoints = []
@@ -42,13 +44,30 @@ def normalizeAngle(angle):
       angle = 0
     return angle
 
+def findOptimalWaypoint():
+    print("yeah i'm pretty much screwed here")
+
+#find bounary issues and request waypoint calculation
 def fixBoundaryTrespassing(coords):
+    global used_waypoints
+
     with open('boundariesBalls.npy', 'rb') as f:
         boundaries = np.load(f)
         coordscount = len(coords[0])
         for i in range(coordscount):
             if not boundaries[int(coords[1][i])][int(coords[0][i])]:
-                return (int(coords[0][i]),int(coords[1][i]))
+                blockedX = coords[0][i]
+                blockedY = coords[1][i]
+                minDistance = 1000000
+                waypointIndex = 0
+                for ind,i in enumerate(DEFINED_WAYPOINTS):
+                    testDistance = distance(i[0],i[1],blockedX,blockedY)
+                    if testDistance < minDistance and not used_waypoints[ind]:
+                        waypointIndex = ind
+                        minDistance = testDistance
+                used_waypoints[waypointIndex] = True
+                waypoints.append(geometry.Translation2d(pixeltoMeters(DEFINED_WAYPOINTS[waypointIndex][0]),pixeltoMeters(DEFINED_WAYPOINTS[waypointIndex][1])))
+                return (DEFINED_WAYPOINTS[waypointIndex][0],DEFINED_WAYPOINTS[waypointIndex][1])
         return (0,0)
 
 def distance(x1,y1,x2,y2):
@@ -69,23 +88,34 @@ def generate(startX,startY,startAngle,endX,endY,endAngle):
     )
 
     states = np.array(new_trajectory.states())
-    uploadStates(new_trajectory)
+    #uploadStates(new_trajectory)
     getCoordsVectorized = np.vectorize(getCoords)
     return getCoordsVectorized(states)
 
 def generateTrajectoryVector(startX,startY,startAngle,endX,endY):
+
+    #check if trajectory is "VALID"
+    with open('boundariesBalls.npy', 'rb') as f:
+        boundaries = np.load(f)
+        if not boundaries[int(endY)][int(endX)]:
+            return
+
     #init waypoints
     global waypoints
+    global used_waypoints
     waypoints = []
+    used_waypoints = np.zeros(len(DEFINED_WAYPOINTS),dtype=bool)
 
     #find most optimal ending angle
     y = startY - endY
     x = startX - endX
     endAngle = normalizeAngle((math.atan2(y,x) * 180 / math.pi)+180)
     coords = generate(startX,startY,startAngle,endX,endY,endAngle) #generate straight line
+    waypointReturn = fixBoundaryTrespassing(coords)
+    coordsReturn = generate(startX,startY,startAngle,endX,endY,endAngle) #generate straight line
 
     #keep adding waypoints until robot's path is clear
-    return fixBoundaryTrespassing(coords), coords
+    return waypointReturn, coordsReturn
 
 def uploadStates(traject: trajectory):
     TICK_TIME = 0.02 # 20 ms
