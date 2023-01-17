@@ -13,13 +13,12 @@ KV_VOLTS_SECONDS_PER_METER = 1.98
 KA_VOLTS_SECONDS_SQ_PER_METER = 0.2
 
 DEFINED_WAYPOINTS = [
-(383, 159),
-(74, 159),
-(74, 425),
 (391, 876),
-(531, 1006),
-(54,870),
-(374, 417)
+(380, 1140),
+(57,870),
+(57,1120),
+(377, 430),
+(506,310)
 ]
 #global waypoints visited list
 used_waypoints = np.zeros(len(DEFINED_WAYPOINTS),dtype=bool)
@@ -112,7 +111,12 @@ def generateTrajectoryVector(startX,startY,startAngle,endX,endY):
     endAngle = normalizeAngle((math.atan2(y,x) * 180 / math.pi)+180)
     coords = generate(startX,startY,startAngle,endX,endY,endAngle) #generate straight line
     waypointReturn = fixBoundaryTrespassing(coords)
-    coordsReturn = generate(startX,startY,startAngle,endX,endY,endAngle) #generate straight line
+    coords = generate(startX,startY,startAngle,endX,endY,endAngle) #generate straight line
+    waypointReturn = fixBoundaryTrespassing(coords)
+    if waypointReturn[0] == 0 and waypointReturn[1] == 0:
+        coordsReturn = coords
+    else:
+        coordsReturn = generate(startX,startY,startAngle,endX,endY,endAngle) #generate straight line
 
     #keep adding waypoints until robot's path is clear
     return waypointReturn, coordsReturn
