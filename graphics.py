@@ -1,3 +1,4 @@
+import os
 import ntcore
 import argparse
 from os.path import basename
@@ -36,15 +37,10 @@ mouseCoordTag = 0
 
 #dynamically updating global variables
 trajectoryCoords = np.zeros((500,500))
+intersectCoords = np.zeros((20,2))
 latestX = 0
 latestY = 0
 gameScale = 1
-
-#draw coordinate global variables
-tDraw = [] #trajectories
-bDraw = [0] * 2 #background
-rDraw = [0] * 2 #robot
-intersectCoord = (0,0)
 
 #Connect to NetworkTables
 if USINGNETWORKTABLES and __name__ == "__main__":
@@ -76,13 +72,17 @@ def flat_img(mat):
 #redraw all elements
 def update_graphics():
     tDraw = np.zeros(np.shape(trajectoryCoords))
+    iDraw = np.zeros(np.shape(intersectCoords))
+    bDraw = [0] * 2
+    rDraw = [0] * 2
     for i in range(np.shape(trajectoryCoords)[1]):
         tDraw[0][i],tDraw[1][i] = zoom_coordinate(trajectoryCoords[0][i],trajectoryCoords[1][i],robotX,robotY,gameScale)
+    for i in range(len(intersectCoords)):
+        iDraw[i][0],iDraw[i][1] = zoom_coordinate(intersectCoords[i][0],intersectCoords[i][1],robotX,robotY,gameScale)
     bDraw[0] = zoom_coordinate(0,0,robotX,robotY,gameScale)
     bDraw[1] = zoom_coordinate(FIELDWIDTH,FIELDHEIGHT,robotX,robotY,gameScale)
     rDraw[0] = zoom_coordinate(robotX-ROBOTLENGTH,robotY-ROBOTHEIGHT,robotX,robotY,gameScale)
     rDraw[1] = zoom_coordinate(robotX+ROBOTLENGTH,robotY+ROBOTHEIGHT,robotX,robotY,gameScale)
-    intersect = zoom_coordinate(intersectCoord[0],intersectCoord[1],robotX,robotY,gameScale)
 
     dpg.set_item_height("drawlist", FIELDHEIGHT)
     dpg.set_item_width("drawlist", SCREENWIDTH/3)
@@ -92,8 +92,8 @@ def update_graphics():
     dpg.draw_image("robot texture", rDraw[0], rDraw[1], uv_min=(0, 0), uv_max=(1, 1), parent="drawlist")
     for i in range(np.shape(trajectoryCoords)[1]-1):
         dpg.draw_line((tDraw[0][i],tDraw[1][i]), (tDraw[0][i+1], tDraw[1][i+1]), color=(255, 0, 0, 255), thickness=3, parent="drawlist")
-    print(intersect)
-    dpg.draw_circle(center=intersect,radius=20,color=(255,255,255,255),parent="drawlist")
+    for i in range(len(iDraw)):
+        dpg.draw_circle(center=(iDraw[i][0],iDraw[i])[1],radius=20,color=(255,255,255,255),parent="drawlist")
 
 #apply zoom to coordinate
 def zoom_coordinate(x,y,zoomX,zoomY,factor):
@@ -105,7 +105,7 @@ def reverse_zoom(x,y,zoomX,zoomY,factor):
 
 #create trajectory
 def createTrajectory():
-    global intersectCoord
+    global intersectCoords
     global trajectoryCoords
     global latestX
     global latestY
@@ -117,7 +117,7 @@ def createTrajectory():
         tempAngle = robotAngle+90
     else:
         tempAngle = robotAngle-90
-    intersectCoord, trajectoryCoords = generateTrajectoryVector(robotX,robotY,tempAngle,latestX,latestY)
+    intersectCoords, trajectoryCoords = generateTrajectoryVector(robotX,robotY,tempAngle,latestX,latestY)
     update_graphics()
 
 #main APP CONTROL
@@ -193,5 +193,6 @@ def main():
         dpg.render_dearpygui_frame()                      
 
     dpg.destroy_context()
+    os._exit(0)
 
 main()

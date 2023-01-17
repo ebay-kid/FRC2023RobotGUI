@@ -12,13 +12,15 @@ KS_VOLTS = 0.22
 KV_VOLTS_SECONDS_PER_METER = 1.98
 KA_VOLTS_SECONDS_SQ_PER_METER = 0.2
 
+MAXIMUM_WAYPOINTS = 4
+
 DEFINED_WAYPOINTS = [
-(391, 876),
-(380, 1140),
-(57,870),
-(57,1120),
-(377, 430),
-(506,310)
+(391, 876), #enter straightaway (rightside)
+(391, 1140), #enter straightaway (rightside)
+(57,870), #enter straightaway (leftside)
+(57,1120), #enter straightaway (leftside)
+(400, 450),
+(540,310)
 ]
 #global waypoints visited list
 used_waypoints = np.zeros(len(DEFINED_WAYPOINTS),dtype=bool)
@@ -48,6 +50,7 @@ def findOptimalWaypoint():
 
 #find bounary issues and request waypoint calculation
 def fixBoundaryTrespassing(coords):
+    global waypoints
     global used_waypoints
 
     with open('boundariesBalls.npy', 'rb') as f:
@@ -66,8 +69,8 @@ def fixBoundaryTrespassing(coords):
                         minDistance = testDistance
                 used_waypoints[waypointIndex] = True
                 waypoints.append(geometry.Translation2d(pixeltoMeters(DEFINED_WAYPOINTS[waypointIndex][0]),pixeltoMeters(DEFINED_WAYPOINTS[waypointIndex][1])))
-                return (DEFINED_WAYPOINTS[waypointIndex][0],DEFINED_WAYPOINTS[waypointIndex][1])
-        return (0,0)
+                return True
+        return False
 
 def distance(x1,y1,x2,y2):
     return math.sqrt(math.pow((x1-x2),2)+math.pow((y1-y2),2))
@@ -78,7 +81,6 @@ def generate(startX,startY,startAngle,endX,endY,endAngle):
     configSettings = trajectory.TrajectoryConfig(MAX_SPEED_MPS,MAX_ACCELERATION_MPS_SQUARED)
     configSettings.setKinematics(DRIVE_KINEMATICS)
     #configSettings.setReversed(True);
-
     new_trajectory = trajectory.TrajectoryGenerator.generateTrajectory(
         startPoint,
         waypoints,
@@ -109,17 +111,20 @@ def generateTrajectoryVector(startX,startY,startAngle,endX,endY):
     y = startY - endY
     x = startX - endX
     endAngle = normalizeAngle((math.atan2(y,x) * 180 / math.pi)+180)
+    iterations = 1
     coords = generate(startX,startY,startAngle,endX,endY,endAngle) #generate straight line
-    waypointReturn = fixBoundaryTrespassing(coords)
-    coords = generate(startX,startY,startAngle,endX,endY,endAngle) #generate straight line
-    waypointReturn = fixBoundaryTrespassing(coords)
-    if waypointReturn[0] == 0 and waypointReturn[1] == 0:
-        coordsReturn = coords
-    else:
-        coordsReturn = generate(startX,startY,startAngle,endX,endY,endAngle) #generate straight line
 
     #keep adding waypoints until robot's path is clear
-    return waypointReturn, coordsReturn
+    while(True):
+        foundWaypoint = fixBoundaryTrespassing(coords)
+        coords = generate(startX,startY,startAngle,endX,endY,endAngle) #generate splined trajectory
+        if (not foundWaypoint) or iterations >= MAXIMUM_WAYPOINTS:
+            break
+        iterations += 1
+
+    for i,coord in enumerate(waypoints):
+        waypoints[i] = (meterstoPixels(coord[0]), meterstoPixels(coord[1]))
+    return waypoints, coords
 
 def uploadStates(traject: trajectory):
     TICK_TIME = 0.02 # 20 ms
