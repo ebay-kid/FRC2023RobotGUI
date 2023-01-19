@@ -15,25 +15,23 @@ KA_VOLTS_SECONDS_SQ_PER_METER = 0.2
 MAXIMUM_WAYPOINTS = 4
 
 DEFINED_WAYPOINTS = [
-(391, 876), #enter straightaway (rightside)
-(391, 1140), #enter straightaway (rightside)
-(57,870), #enter straightaway (leftside)
-(57,1120), #enter straightaway (leftside)
-(400, 450),
-(540,310)
+(395, 945), #enter straightaway (rightside)
+(395, 1100), #enter straightaway (rightside)
+(60,945), #enter straightaway (leftside)
+(60,1100), #enter straightaway (leftside)
+(489,401),
 ]
-#global waypoints visited list
-used_waypoints = np.zeros(len(DEFINED_WAYPOINTS),dtype=bool)
+POSED_WAYPOINTS = [True,True,True,True,False]
 
-#global Waypoints
-waypoints = []
-
+#gets the coordinates from trajectory states
 def getCoords(state):
     return (meterstoPixels(state.pose.X()),meterstoPixels(state.pose.Y()))
 
+#pixel to meter conversion
 def pixeltoMeters(pixels):
     return pixels*0.012
 
+#meter to pixel conversion
 def meterstoPixels(meters):
     return meters/0.012
 
@@ -45,13 +43,12 @@ def normalizeAngle(angle):
       angle = 0
     return angle
 
+#probably not going to work on this if the other stuff works
 def findOptimalWaypoint():
     print("yeah i'm pretty much screwed here")
 
 #find bounary issues and request waypoint calculation
-def fixBoundaryTrespassing(coords):
-    global waypoints
-    global used_waypoints
+def fixBoundaryTrespassing(coords, waypoints, used_waypoints):
 
     with open('boundariesBalls.npy', 'rb') as f:
         boundaries = np.load(f)
@@ -68,23 +65,50 @@ def fixBoundaryTrespassing(coords):
                         waypointIndex = ind
                         minDistance = testDistance
                 used_waypoints[waypointIndex] = True
-                waypoints.append(geometry.Translation2d(pixeltoMeters(DEFINED_WAYPOINTS[waypointIndex][0]),pixeltoMeters(DEFINED_WAYPOINTS[waypointIndex][1])))
+                previousPose = waypoints[len(waypoints)-2]
+                nextPose = waypoints[-1]
+                curX = pixeltoMeters(DEFINED_WAYPOINTS[waypointIndex][0])
+                curY = pixeltoMeters(DEFINED_WAYPOINTS[waypointIndex][1])
+                if POSED_WAYPOINTS[waypointIndex]:
+                    optimalAngle = 90
+                else:
+                    optimalAngle = findOptimalAngleInBetween(previousPose.X(),previousPose.Y(),curX,curY,nextPose.X(),nextPose.Y())
+                waypoints.insert((len(waypoints)-1),pose(curX,curY,optimalAngle))
+                waypoints[-1] = pose(nextPose.X(),nextPose.Y(),findOptimalAngle(curX,curY,nextPose.X(),nextPose.Y()))
+
                 return True
         return False
 
+#distance formula calculation
 def distance(x1,y1,x2,y2):
     return math.sqrt(math.pow((x1-x2),2)+math.pow((y1-y2),2))
 
-def generate(startX,startY,startAngle,endX,endY,endAngle):
-    startPoint = geometry.Pose2d(pixeltoMeters(startX),pixeltoMeters(startY),geometry.Rotation2d.fromDegrees(startAngle))
-    endPoint = geometry.Pose2d(pixeltoMeters(endX),pixeltoMeters(endY),geometry.Rotation2d.fromDegrees(endAngle))
+#find most optimalAngle
+def findOptimalAngle(prevX,prevY,curX,curY):
+    y = prevY - curY
+    x = prevX - curX
+    return normalizeAngle((math.atan2(y,x) * 180 / math.pi)+180)
+
+def findOptimalAngleInBetween(prevX,prevY,curX,curY,nextX,nextY):
+    y = prevY - curY
+    x = prevX - curX
+    y2 = curY - nextY
+    x2 = curX - nextX
+    a1 = normalizeAngle((math.atan2(y,x) * 180 / math.pi)+180)
+    a2 = normalizeAngle((math.atan2(y2,x2) * 180 / math.pi)+180)
+    return (a1 + a2) / 2
+
+#create Pose2D object
+def pose(x,y,rot):
+    return geometry.Pose2d(x,y,geometry.Rotation2d.fromDegrees(rot))
+
+# creates the trajectory
+def generate(waypoints):
     configSettings = trajectory.TrajectoryConfig(MAX_SPEED_MPS,MAX_ACCELERATION_MPS_SQUARED)
     configSettings.setKinematics(DRIVE_KINEMATICS)
     #configSettings.setReversed(True);
     new_trajectory = trajectory.TrajectoryGenerator.generateTrajectory(
-        startPoint,
         waypoints,
-        endPoint,
         configSettings
     )
 
@@ -93,38 +117,34 @@ def generate(startX,startY,startAngle,endX,endY,endAngle):
     getCoordsVectorized = np.vectorize(getCoords)
     return getCoordsVectorized(states)
 
+#Main handler of trajectory generation
 def generateTrajectoryVector(startX,startY,startAngle,endX,endY):
-
     #check if trajectory is "VALID"
     with open('boundariesBalls.npy', 'rb') as f:
         boundaries = np.load(f)
         if not boundaries[int(endY)][int(endX)]:
             return
 
+    endAngle = findOptimalAngle(startX,startY,endX,endY)
+
     #init waypoints
-    global waypoints
+    waypoints = [pose(pixeltoMeters(startX),pixeltoMeters(startY),startAngle),pose(pixeltoMeters(endX),pixeltoMeters(endY),endAngle)]
+
     global used_waypoints
-    waypoints = []
     used_waypoints = np.zeros(len(DEFINED_WAYPOINTS),dtype=bool)
 
     #find most optimal ending angle
-    y = startY - endY
-    x = startX - endX
-    endAngle = normalizeAngle((math.atan2(y,x) * 180 / math.pi)+180)
-    iterations = 1
-    coords = generate(startX,startY,startAngle,endX,endY,endAngle) #generate straight line
 
-    #keep adding waypoints until robot's path is clear
-    while(True):
-        foundWaypoint = fixBoundaryTrespassing(coords)
-        coords = generate(startX,startY,startAngle,endX,endY,endAngle) #generate splined trajectory
-        if (not foundWaypoint) or iterations >= MAXIMUM_WAYPOINTS:
-            break
-        iterations += 1
+    coords = generate(waypoints) #generate inital trajectory
+    if(fixBoundaryTrespassing(coords, waypoints, used_waypoints)):
+        coords = generate(waypoints)
+    if(fixBoundaryTrespassing(coords, waypoints, used_waypoints)):
+        coords = generate(waypoints)
 
-    for i,coord in enumerate(waypoints):
-        waypoints[i] = (meterstoPixels(coord[0]), meterstoPixels(coord[1]))
-    return waypoints, coords
+    importantPoints = []
+    for i in waypoints:
+        importantPoints.append((meterstoPixels(i.X()),meterstoPixels(i.Y())))
+    return importantPoints, coords
 
 def uploadStates(traject: trajectory):
     TICK_TIME = 0.02 # 20 ms

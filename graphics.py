@@ -50,7 +50,7 @@ if USINGNETWORKTABLES and __name__ == "__main__":
 
 #Initialize and Values using NetworkTables
 teamColor = False #True = Blue, False = Red
-robotX = 200
+robotX = 400
 robotY = 600
 robotAngle = 0
 
