@@ -15,17 +15,17 @@ KA_VOLTS_SECONDS_SQ_PER_METER = 0.2
 MAXIMUM_WAYPOINTS = 4
 
 DEFINED_WAYPOINTS = [
-(395, 945), #enter straightaway (rightside)
-(395, 1085), #enter straightaway (rightside)
-(60,945), #enter straightaway (leftside)
-(60,1085), #enter straightaway (leftside)
-(489,401),
+    (395, 945),  #enter straightaway (rightside)
+    (395, 1085), #enter straightaway (rightside)
+    (60,945),    #enter straightaway (leftside)
+    (60,1085),   #enter straightaway (leftside)
+    (489,401),
 ]
 POSED_WAYPOINTS = [True,True,True,True,False]
 
 #gets the coordinates from trajectory states
 def getCoords(state):
-    return (meterstoPixels(state.pose.X()),meterstoPixels(state.pose.Y()))
+    return (meterstoPixels(state.pose.X()), meterstoPixels(state.pose.Y()))
 
 #pixel to meter conversion
 def pixeltoMeters(pixels):
@@ -49,7 +49,6 @@ def findOptimalWaypoint():
 
 #find bounary issues and request waypoint calculation
 def fixBoundaryTrespassing(coords, waypoints, used_waypoints):
-
     with open('boundariesBalls.npy', 'rb') as f:
         boundaries = np.load(f)
         coordscount = len(coords[0])
