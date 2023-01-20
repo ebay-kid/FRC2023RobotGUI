@@ -16,9 +16,9 @@ MAXIMUM_WAYPOINTS = 4
 
 DEFINED_WAYPOINTS = [
 (395, 945), #enter straightaway (rightside)
-(395, 1100), #enter straightaway (rightside)
+(395, 1085), #enter straightaway (rightside)
 (60,945), #enter straightaway (leftside)
-(60,1100), #enter straightaway (leftside)
+(60,1085), #enter straightaway (leftside)
 (489,401),
 ]
 POSED_WAYPOINTS = [True,True,True,True,False]
