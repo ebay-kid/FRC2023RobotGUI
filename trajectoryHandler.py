@@ -149,7 +149,7 @@ def uploadStates(traject: trajectory):
     TICK_TIME = 0.02 # 20 ms
 
     trajTime = traject.Trajectory.totalTime()
-    numOfStates = trajTime // TICK_TIME
+    numOfStates = math.ceil(trajTime / TICK_TIME)
     upload = np.empty(7 * numOfStates) # this can only be sent as a 1-D array.
 
     state: trajectory.Trajectory.State
