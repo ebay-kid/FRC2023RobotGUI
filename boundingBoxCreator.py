@@ -24,7 +24,7 @@ FIELDHEIGHT = 1305
 mouseCoordTag = 0
 
 #dynamically updating global variables
-trajectoryCoords = np.zeros((500,500))
+trajectoryCoords = np.zeros((500, 500))
 latestX = 0
 latestY = 0
 gameScale = 1
@@ -33,14 +33,14 @@ gameScale = 1
 tDraw = [] #trajectories
 bDraw = [0] * 2 #background
 rDraw = [0] * 2 #robot
-intersectCoord = (0,0)
+intersectCoord = (0, 0)
 
 #update FPS
 def updateFps():
     global new_frame_time
     global prev_frame_time
     new_frame_time = time.time()
-    fps = 1/(new_frame_time-prev_frame_time+0.000001)
+    fps = 1 / (new_frame_time-prev_frame_time + 0.000001)
     prev_frame_time = new_frame_time
     return "FPS " + str(int(fps))
 
@@ -56,16 +56,16 @@ def update_graphics():
     dpg.set_item_width("drawlist", FIELDWIDTH)
     if dpg.does_alias_exist:
         dpg.delete_item("drawlist", children_only=True)
-    dpg.draw_image("game field", (0,0), (FIELDWIDTH,FIELDHEIGHT), uv_min=(0, 0), uv_max=(1,1), parent="drawlist")
+    dpg.draw_image("game field", (0, 0), (FIELDWIDTH,FIELDHEIGHT), uv_min=(0, 0), uv_max=(1,1), parent="drawlist")
 
 #create trajectory
 def createBoundingPoint():
     global latestX
     global latestY
-    latestX = max(pyautogui.position()[0]-10,0)
-    latestY = max(pyautogui.position()[1]-25,0)
+    latestX = max(pyautogui.position()[0] - 10, 0)
+    latestY = max(pyautogui.position()[1] - 25, 0)
 
-    dpg.set_value(mouseCoordTag,"CLICK: X "+str(latestX)+" Y "+str(latestY))
+    dpg.set_value(mouseCoordTag, "CLICK: X " + str(latestX) + " Y " + str(latestY))
     update_graphics()
 
 #main APP CONTROL
@@ -97,11 +97,11 @@ def main():
     #create window for drawings and images
     with dpg.window(tag="Window1"):
         dpg.set_primary_window("Window1", True)
-        with dpg.drawlist(tag="drawlist", width=SCREENWIDTH/3, height=FIELDHEIGHT, parent="Window1"):
+        with dpg.drawlist(tag="drawlist", width=SCREENWIDTH / 3, height=FIELDHEIGHT, parent="Window1"):
             dpg.draw_image("game field", (0, 0), (FIELDWIDTH, FIELDHEIGHT), uv_min=(0, 0), uv_max=(1, 1))
 
     #create window for text 
-    with dpg.window(tag="ctlwindow", label="", no_close=True, min_size=(450,250), pos=(SCREENWIDTH/3+20,10)):
+    with dpg.window(tag="ctlwindow", label="", no_close=True, min_size=(450, 250), pos=(SCREENWIDTH / 3 + 20, 10)):
         global mouseCoordTag
         fpsTag = dpg.add_text("FPS 0")
         mouseCoordTag = dpg.add_text("CLICKED: X 0 Y 0")
@@ -111,7 +111,7 @@ def main():
 
     #run program
     while dpg.is_dearpygui_running():
-        dpg.set_value(fpsTag,updateFps())    
+        dpg.set_value(fpsTag, updateFps())    
         dpg.render_dearpygui_frame()                      
 
     dpg.destroy_context()

@@ -3,8 +3,8 @@ import numpy as np
 img = np.array(Image.open("epic_gaiming.png"))
 
 # one means it's legal to go through, 0 means not legal
-new1 = np.ones((len(img),len(img[0])),dtype=bool)
-new2 = np.ones((len(img[0]),len(img)),dtype=bool)
+new1 = np.ones((len(img), len(img[0])), dtype=bool)
+new2 = np.ones((len(img[0]), len(img)), dtype=bool)
 
 bounds = []
 boundsRot = []
