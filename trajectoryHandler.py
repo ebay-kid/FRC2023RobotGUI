@@ -23,6 +23,15 @@ DEFINED_WAYPOINTS = [
 ]
 POSED_WAYPOINTS = [True,True,True,True,False]
 
+def writeToFile(arr: np.ndarray, fileName: str):
+    print("iohefoiwhatruipaewhrf8iueasbgulfasge7ufgyuasiejfguilsdzgfuildzskgfd")
+    with open(fileName, 'wb') as f:
+        np.save(f, arr)
+
+def readFromFile(fileName: str) -> np.ndarray:
+    with open(fileName, 'rb') as f:
+        return np.load(f)
+
 #gets the coordinates from trajectory states
 def getCoords(state):
     return (meterstoPixels(state.pose.X()), meterstoPixels(state.pose.Y()))
@@ -101,6 +110,7 @@ def findOptimalAngleInBetween(prevX,prevY,curX,curY,nextX,nextY):
 def pose(x,y,rot):
     return geometry.Pose2d(x,y,geometry.Rotation2d.fromDegrees(rot))
 
+getCoordsVectorized = np.vectorize(getCoords)
 # creates the trajectory
 def generate(waypoints):
     configSettings = trajectory.TrajectoryConfig(MAX_SPEED_MPS,MAX_ACCELERATION_MPS_SQUARED)
@@ -113,8 +123,11 @@ def generate(waypoints):
 
     states = np.array(new_trajectory.states())
     #uploadStates(new_trajectory)
-    getCoordsVectorized = np.vectorize(getCoords)
     return getCoordsVectorized(states)
+
+def load():
+    traject = readFromFile("trajectory.npy")
+
 
 #Main handler of trajectory generation
 def generateTrajectoryVector(startX,startY,startAngle,endX,endY):
@@ -167,3 +180,21 @@ def uploadStates(traject: trajectory):
         upload[shift + 5] = state.pose.rotation().radians
         upload[shift + 6] = state.curvature
     network_tables.getEntry("robogui", "trajectory").setDoubleArray(upload)
+
+    writeToFile(upload, "trajectory.npy")
+
+def parseStates(arr: np.ndarray):
+    states = []
+    if arr.size % 7 != 0 or arr.size == 0:
+        raise ValueError("Array size must be divisible by 7")
+    for i in range(arr.size // 7):
+        shift = i * 7
+        time = arr[shift + 0]
+        velocity = arr[shift + 1]
+        acceleration = arr[shift + 2]
+        x = arr[shift + 3]
+        y = arr[shift + 4]
+        rotation = arr[shift + 5]
+        curvature = arr[shift + 6]
+        states.append(trajectory.Trajectory.State(time, velocity, acceleration, geometry.Pose2d(x, y, geometry.Rotation2d(rotation)), curvature))
+    return trajectory.Trajectory(states)
