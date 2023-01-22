@@ -4,6 +4,7 @@ from wpimath import trajectory, geometry, kinematics
 import network_tables
 
 from constants import *
+from util import *
 
 #MPS = Meters Per Second
 MAX_SPEED_MPS = 3
@@ -32,26 +33,6 @@ def writeToFile(arr: np.ndarray, fileName: str):
 def readFromFile(fileName: str) -> np.ndarray:
     with open(fileName, 'rb') as f:
         return np.load(f)
-
-#gets the coordinates from trajectory states
-def getCoords(state):
-    return (meterstoPixels(state.pose.X()), meterstoPixels(state.pose.Y()))
-
-#pixel to meter conversion
-def pixeltoMeters(pixels):
-    return pixels * 0.012
-
-#meter to pixel conversion
-def meterstoPixels(meters):
-    return meters / 0.012
-
-def normalizeAngle(angle):
-    angle %= 360
-    if angle < 0:
-        angle += 360
-    if abs(360 - angle) < 0.5:
-      angle = 0
-    return angle
 
 #find bounary issues and request waypoint calculation
 def fixBoundaryTrespassing(coords, waypoints, used_waypoints):
@@ -103,13 +84,21 @@ def findOptimalAngleInBetween(prevX, prevY, curX, curY, nextX, nextY):
     a2 = normalizeAngle((math.atan2(y2, x2) * 180 / math.pi) + 180)
     return (a1 + a2) / 2
 
+def listOfPointsToTrajectory(points: list, initialRotation: float):
+    initial = pose(pixeltoMeters(points[0][0]), pixeltoMeters(points[0][1]), initialRotation)
+    waypoints = []
+    for i in range(1, len(points) - 1):
+        waypoints.append(geometry.Translation2d(pixeltoMeters(points[i][0]), pixeltoMeters(points[i][1])))
+    end = geometry.Pose2d(pixeltoMeters(points[-1][0]), pixeltoMeters(points[-1][1]), findOptimalAngle(pixeltoMeters(points[-2][0]), pixeltoMeters(points[-2][1]), pixeltoMeters(points[-1][0]), pixeltoMeters(points[-1][1])))
+    return generateFromStart_Waypoints(initial, waypoints, end)
+
 #create Pose2D object
 def pose(x, y, rot):
     return geometry.Pose2d(x, y, geometry.Rotation2d.fromDegrees(rot))
 
 getCoordsVectorized = np.vectorize(getCoords)
 # creates the trajectory
-def generate(waypoints):
+def generateFromStart_End(waypoints: list):
     configSettings = trajectory.TrajectoryConfig(MAX_SPEED_MPS, MAX_ACCELERATION_MPS_SQUARED)
     configSettings.setKinematics(DRIVE_KINEMATICS)
     #configSettings.setReversed(True);
@@ -122,9 +111,20 @@ def generate(waypoints):
     uploadStates(new_trajectory)
     return getCoordsVectorized(states)
 
-def load():
-    traject = readFromFile("trajectory.npy")
+def generateFromStart_Waypoints(start: geometry.Pose2d, waypoints: list, end: geometry.Pose2d):
+    configSettings = trajectory.TrajectoryConfig(MAX_SPEED_MPS, MAX_ACCELERATION_MPS_SQUARED)
+    configSettings.setKinematics(DRIVE_KINEMATICS)
+    #configSettings.setReversed(True);
+    new_trajectory = trajectory.TrajectoryGenerator.generateTrajectory(
+        start=start,
+        interiorWaypoints=waypoints,
+        end=end,
+        config=configSettings
+    )
 
+    states = np.array(new_trajectory.states())
+    uploadStates(new_trajectory)
+    return getCoordsVectorized(states)
 
 #Main handler of trajectory generation
 def generateTrajectoryVector(startX, startY, startAngle, endX, endY):
@@ -134,7 +134,7 @@ def generateTrajectoryVector(startX, startY, startAngle, endX, endY):
         if not boundaries[int(endY)][int(endX)]:
             return
 
-    endAngle = findOptimalAngle(startX,startY,endX,endY)
+    endAngle = findOptimalAngle(startX,startY,endX,endY) # for our usecase, end angle doesn't matter and we just need the angle requiring the least movement.
 
     #init waypoints
     waypoints = [pose(pixeltoMeters(startX), pixeltoMeters(startY), startAngle), pose(pixeltoMeters(endX), pixeltoMeters(endY), endAngle)]
@@ -144,18 +144,18 @@ def generateTrajectoryVector(startX, startY, startAngle, endX, endY):
 
     #find most optimal ending angle
 
-    coords = generate(waypoints) #generate inital trajectory
+    coords = generateFromStart_End(waypoints) #generate inital trajectory
     if(fixBoundaryTrespassing(coords, waypoints, used_waypoints)):
-        coords = generate(waypoints)
+        coords = generateFromStart_End(waypoints)
     if(fixBoundaryTrespassing(coords, waypoints, used_waypoints)):
-        coords = generate(waypoints)
+        coords = generateFromStart_End(waypoints)
 
     importantPoints = []
     for i in waypoints:
         importantPoints.append((meterstoPixels(i.X()), meterstoPixels(i.Y())))
     return importantPoints, coords
 
-def uploadStates(traject: trajectory.Trajectory):
+def uploadStates(traject: trajectory.Trajectory, ntUpload = True):
     TICK_TIME = 0.02 # 20 ms
 
     trajTime = traject.totalTime()
@@ -177,7 +177,7 @@ def uploadStates(traject: trajectory.Trajectory):
         upload[shift + 5] = state.pose.rotation().radians()
         upload[shift + 6] = state.curvature
 
-    if USINGNETWORKTABLES:
+    if ntUpload and USINGNETWORKTABLES:
         network_tables.getEntry("robogui", "trajectory").setDoubleArray(upload)
 
     writeToFile(upload, "trajectory.npy")

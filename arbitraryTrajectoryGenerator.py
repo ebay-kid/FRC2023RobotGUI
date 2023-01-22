@@ -4,6 +4,7 @@ import time
 from PIL import Image
 import pyautogui
 import ctypes
+import trajectoryHandler
 
 #intialize user32 to read monitor size
 user32 = ctypes.windll.user32
@@ -54,18 +55,37 @@ def flat_img(mat):
 
 #redraw all elements
 def update_graphics():
+    global trajectoryCoords
+
     dpg.set_item_height("drawlist", FIELDHEIGHT)
     dpg.set_item_width("drawlist", FIELDWIDTH)
     if dpg.does_alias_exist:
         dpg.delete_item("drawlist", children_only=True)
     dpg.draw_image("game field", (0,0), (FIELDWIDTH, FIELDHEIGHT), uv_min=(0, 0), uv_max=(1,1), parent="drawlist")
 
+    for i in range(len(waypoints)):
+        if i == 0:
+            dpg.draw_circle((waypoints[i][0], waypoints[i][1]), 5, fill=(0, 0, 255, 255), parent="drawlist") # Initial point
+        else:
+            dpg.draw_circle((waypoints[i][0], waypoints[i][1]), 5, fill=(255, 0, 0, 255), parent="drawlist") # All other waypoints
+    
+    tDraw = np.zeros(np.shape(trajectoryCoords))
+    for i in range(np.shape(trajectoryCoords)[1]):
+        tDraw[0][i], tDraw[1][i] = trajectoryCoords[0][i], trajectoryCoords[1][i]
+    for i in range(np.shape(trajectoryCoords)[1] - 1):
+        dpg.draw_line((tDraw[0][i], tDraw[1][i]), (tDraw[0][i + 1], tDraw[1][i + 1]), color=(255, 0, 0, 255), thickness=3, parent="drawlist")
+
 #create trajectory
 def addTargetPoint():
     global latestX
     global latestY
+    global waypoints
+
     latestX = max(pyautogui.position()[0] - 10, 0)
     latestY = max(pyautogui.position()[1] - 25, 0)
+
+    if latestX > FIELDWIDTH or latestY > FIELDHEIGHT:
+        return
 
     dpg.set_value(mouseCoordTag, "CLICK: X " + str(latestX) + " Y " + str(latestY))
 
@@ -74,6 +94,8 @@ def addTargetPoint():
 
 #main APP CONTROL
 def main():
+    global waypoints
+
     #always create context first
     dpg.create_context()
     
@@ -109,6 +131,34 @@ def main():
         fpsTag = dpg.add_text("FPS 0")
         mouseCoordTag = dpg.add_text("CLICKED: X 0 Y 0")
 
+    def popWaypoint():
+        waypoints.pop()
+        update_graphics()
+
+    def generateTrajectory():
+        global trajectoryCoords
+        trajectoryCoords = trajectoryHandler.listOfPointsToTrajectory(waypoints, 0)
+        update_graphics()
+    
+    def saveTrajectory():
+        trajectoryHandler.uploadStates(trajectoryCoords, False)
+    
+    def loadTrajectory():
+        print("Loading Trajectory")
+    
+    def clearTrajectory():
+        global trajectoryCoords
+        waypoints.clear()
+        trajectoryCoords = np.zeros((0, 0))
+        update_graphics()
+
+    with dpg.window(tag="trajGenWindow", label="Trajectory Generation", no_close=True, min_size=(450, 350), pos=(SCREENWIDTH / 3 + 20, 300)):
+        dpg.add_button(label="Remove last point", callback=popWaypoint)
+        dpg.add_button(label="Generate Trajectory", callback=generateTrajectory)
+        dpg.add_button(label="Save Trajectory", callback=saveTrajectory)
+        dpg.add_button(label="Load Trajectory", callback=loadTrajectory)
+        dpg.add_button(label="Clear Trajectory", callback=clearTrajectory)
+
     #show viewport
     dpg.show_viewport()
 
@@ -119,5 +169,5 @@ def main():
 
     dpg.destroy_context()
 
-main()
-
+if __name__ == "__main__":
+    main()

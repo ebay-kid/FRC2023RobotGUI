@@ -8,6 +8,7 @@ from trajectoryHandler import generateTrajectoryVector
 import pyautogui
 import network_tables
 from constants import *
+from util import *
 
 #intialize user32 to read monitor size
 user32 = ctypes.windll.user32
@@ -85,14 +86,6 @@ def update_graphics():
         dpg.draw_line((tDraw[0][i], tDraw[1][i]), (tDraw[0][i + 1], tDraw[1][i + 1]), color=(255, 0, 0, 255), thickness=3, parent="drawlist")
     for i in range(len(iDraw)):
         dpg.draw_circle(center=(iDraw[i][0], iDraw[i])[1], radius=20, color=(255,255,255,255), parent="drawlist")
-
-#apply zoom to coordinate
-def zoom_coordinate(x, y, zoomX, zoomY, factor):
-    return x + (x - zoomX) * (factor - 1), y + (y - zoomY) * (factor - 1)
-
-#apply reverse zoom
-def reverse_zoom(x, y, zoomX, zoomY, factor):
-    return (x + (factor - 1) * zoomX) / factor, (y + (factor - 1) * zoomY) / factor
 
 #create trajectory
 def createTrajectory():
