@@ -10,6 +10,8 @@ import network_tables
 from constants import *
 from util import *
 
+import collections
+
 #intialize user32 to read monitor size
 user32 = ctypes.windll.user32
 user32.SetProcessDPIAware()
@@ -21,6 +23,7 @@ new_frame_time = 0
 # some constants
 SCREENWIDTH = user32.GetSystemMetrics(0)
 SCREENHEIGHT = user32.GetSystemMetrics(1)
+FPS_RECORD_DELAY = 4
 
 #Global Tags
 robotCoordTag = 0
@@ -34,6 +37,9 @@ latestX = 0
 latestY = 0
 gameScale = 1
 
+fps_record_delay_count = FPS_RECORD_DELAY
+fps_record = collections.deque(max_size=100)
+
 #Connect to NetworkTables
 if USINGNETWORKTABLES and __name__ == "__main__":
     network_tables.init()
@@ -46,14 +52,31 @@ robotX = 400
 robotY = 600
 robotAngle = 0
 
+def average(sequence: List[int]) -> float:
+    return sum(sequence) / len(sequence)
+
+# Gets the raw fps, which can be very wrong
+def get_raw_fps():
+    global new_frame_time, prev_frame_time
+    new_frame_time = time.time()
+    fps = 1/(new_frame_time-prev_frame_time+0.000001)
+    prev_frame_time = new_frame_time
+    return fps
+
+# Gets the fps, but with some extra steps to clean the values.
+def get_clean_fps():
+    global fps_record_delay_count
+    fps = get_raw_fps()
+    fps_record_delay_count += 1
+    if fps <= MAX_FPS and fps_record_delay_count >= FPS_RECORD_DELAY:
+        fps_record.appendleft(fps)
+        fps_record_delay_count = 0
+    return average(fps_record)
+    
 #update FPS
 def updateFps():
-    global new_frame_time
-    global prev_frame_time
-    new_frame_time = time.time()
-    fps = 1 / (new_frame_time-prev_frame_time+0.000001)
-    prev_frame_time = new_frame_time
-    return "FPS " + str(int(fps))
+    fps = get_clean_fps()
+    return f"FPS {fps:.1f}"
 
 #flatten image to be used as Texture
 def flat_img(mat):
