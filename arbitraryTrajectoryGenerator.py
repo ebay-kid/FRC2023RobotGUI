@@ -147,11 +147,27 @@ def main():
         update_graphics()
     
     def saveTrajectory():
-        trajectoryHandler.uploadStates(trajectoryCoords, False)
+        global trajectoryCoords
+        global waypoints
+
+        file = fd.asksaveasfile(mode='w', filetypes=[('Numpy Save files', '*.npy')], title='Save Trajectory File')
+        fName = file.name
+        file.close()
+        trajectoryHandler.writeToFile(trajectoryCoords, fName)
+        trajectoryHandler.saveWaypoints(waypoints, fName + "_waypoints.npy")
 
     def loadTrajectory():
+        global trajectoryCoords
+        global waypoints
+
         file = fd.askopenfile(mode='r', filetypes=[('Numpy Save files', '*.npy')], title='Select Trajectory File')
-    
+        fName = file.name
+        file.close()
+        trajectoryCoords = trajectoryHandler.readFromFile(file.name)
+
+        waypoints = trajectoryHandler.loadWaypoints(fName + "_waypoints.npy")
+        update_graphics()
+
     def clearTrajectory():
         global trajectoryCoords
         waypoints.clear()

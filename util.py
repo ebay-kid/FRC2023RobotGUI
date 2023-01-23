@@ -1,3 +1,5 @@
+import math
+
 #apply zoom to coordinate
 def zoom_coordinate(x, y, zoomX, zoomY, factor):
     return x + (x - zoomX) * (factor - 1), y + (y - zoomY) * (factor - 1)
@@ -26,3 +28,7 @@ def normalizeAngle(angle):
     if abs(360 - angle) < 0.5:
       angle = 0
     return angle
+
+#distance formula calculation
+def distance(x1, y1, x2, y2):
+    return math.sqrt(math.pow((x1 - x2), 2) + math.pow((y1 - y2), 2))

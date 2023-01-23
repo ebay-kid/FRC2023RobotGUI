@@ -27,12 +27,24 @@ DEFINED_WAYPOINTS = [
 POSED_WAYPOINTS = [True,True,True,True,False]
 
 def writeToFile(arr: np.ndarray, fileName: str):
+    if not fileName.endswith('.npy'):
+        fileName += '.npy'
     with open(fileName, 'wb') as f:
         np.save(f, arr)
 
 def readFromFile(fileName: str) -> np.ndarray:
+    if not fileName.endswith('.npy'):
+        fileName += '.npy'
     with open(fileName, 'rb') as f:
         return np.load(f)
+
+def saveWaypoints(waypoints: list, fileName: str):
+    arr = np.array(waypoints)
+    writeToFile(arr, fileName)
+
+def loadWaypoints(fileName: str) -> list:
+    arr = readFromFile(fileName)
+    return arr.tolist()
 
 #find bounary issues and request waypoint calculation
 def fixBoundaryTrespassing(coords, waypoints, used_waypoints):
@@ -64,10 +76,6 @@ def fixBoundaryTrespassing(coords, waypoints, used_waypoints):
 
                 return True
         return False
-
-#distance formula calculation
-def distance(x1, y1, x2, y2):
-    return math.sqrt(math.pow((x1 - x2), 2) + math.pow((y1 - y2), 2))
 
 #find most optimalAngle
 def findOptimalAngle(prevX, prevY, curX, curY):
@@ -124,6 +132,10 @@ def generateFromStart_Waypoints(start: geometry.Pose2d, waypoints: list, end: ge
 
     states = np.array(new_trajectory.states())
     uploadStates(new_trajectory)
+    return getCoordsVectorized(states)
+
+def coordsFromTrajectory(traject: trajectory.Trajectory):
+    states = np.array(traject.states())
     return getCoordsVectorized(states)
 
 #Main handler of trajectory generation
