@@ -185,7 +185,7 @@ def uploadStates(traject: trajectory.Trajectory, ntUpload = True):
 def parseStates(arr: np.ndarray):
     states = []
     if arr.size % 7 != 0 or arr.size == 0:
-        raise ValueError("Array size must be divisible by 7")
+        raise ValueError("Array size must be divisible by 7 and non-zero.")
     for i in range(arr.size // 7):
         shift = i * 7
         time = arr[shift + 0]

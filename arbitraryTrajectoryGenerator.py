@@ -5,6 +5,8 @@ from PIL import Image
 import pyautogui
 import ctypes
 import trajectoryHandler
+import os
+import tkinter.filedialog as fd
 
 #intialize user32 to read monitor size
 user32 = ctypes.windll.user32
@@ -53,6 +55,9 @@ def flat_img(mat):
     dpg_image = np.frombuffer(mat.tobytes(), dtype=np.uint8) / 255.0
     return dpg_image
 
+def coordToID(x, y):
+    return str(x) + "," + str(y)
+
 #redraw all elements
 def update_graphics():
     global trajectoryCoords
@@ -73,10 +78,11 @@ def update_graphics():
     for i in range(np.shape(trajectoryCoords)[1]):
         tDraw[0][i], tDraw[1][i] = trajectoryCoords[0][i], trajectoryCoords[1][i]
     for i in range(np.shape(trajectoryCoords)[1] - 1):
-        dpg.draw_line((tDraw[0][i], tDraw[1][i]), (tDraw[0][i + 1], tDraw[1][i + 1]), color=(255, 0, 0, 255), thickness=3, parent="drawlist")
+        x, y = tDraw[0][i], tDraw[1][i]
+        dpg.draw_line((x, y), (tDraw[0][i + 1], tDraw[1][i + 1]), color=(255, 0, 0, 255), thickness=3, parent="drawlist", tag = "tr_" + coordToID(x, y))
 
 #create trajectory
-def addTargetPoint():
+def clickCapturer():
     global latestX
     global latestY
     global waypoints
@@ -117,7 +123,7 @@ def main():
 
     #basically an event handler
     with dpg.handler_registry():
-        dpg.add_mouse_click_handler(callback=addTargetPoint)
+        dpg.add_mouse_click_handler(callback=clickCapturer)
     
     #create window for drawings and images
     with dpg.window(tag="Window1"):
@@ -142,9 +148,9 @@ def main():
     
     def saveTrajectory():
         trajectoryHandler.uploadStates(trajectoryCoords, False)
-    
+
     def loadTrajectory():
-        print("Loading Trajectory")
+        file = fd.askopenfile(mode='r', filetypes=[('Numpy Save files', '*.npy')], title='Select Trajectory File')
     
     def clearTrajectory():
         global trajectoryCoords
