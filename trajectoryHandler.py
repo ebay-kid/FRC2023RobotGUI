@@ -48,34 +48,33 @@ def loadWaypoints(fileName: str) -> list:
 
 #find bounary issues and request waypoint calculation
 def fixBoundaryTrespassing(coords, waypoints, used_waypoints):
-    with open('boundariesBalls.npy', 'rb') as f:
-        boundaries = np.load(f)
-        coordscount = len(coords[0])
-        for i in range(coordscount):
-            if not boundaries[int(coords[1][i])][int(coords[0][i])]:
-                blockedX = coords[0][i]
-                blockedY = coords[1][i]
-                minDistance = 1000000
-                waypointIndex = 0
-                for ind, i in enumerate(DEFINED_WAYPOINTS):
-                    testDistance = distance(i[0], i[1], blockedX, blockedY)
-                    if testDistance < minDistance and not used_waypoints[ind]:
-                        waypointIndex = ind
-                        minDistance = testDistance
-                used_waypoints[waypointIndex] = True
-                previousPose = waypoints[len(waypoints) - 2]
-                nextPose = waypoints[-1]
-                curX = pixeltoMeters(DEFINED_WAYPOINTS[waypointIndex][0])
-                curY = pixeltoMeters(DEFINED_WAYPOINTS[waypointIndex][1])
-                if POSED_WAYPOINTS[waypointIndex]:
-                    optimalAngle = 90
-                else:
-                    optimalAngle = findOptimalAngleInBetween(previousPose.X(), previousPose.Y(), curX, curY, nextPose.X(), nextPose.Y())
-                waypoints.insert((len(waypoints) - 1), pose(curX, curY, optimalAngle))
-                waypoints[-1] = pose(nextPose.X(), nextPose.Y(), findOptimalAngle(curX, curY, nextPose.X(), nextPose.Y()))
+    boundaries = readFromFile('boundariesBalls.npy')
+    coordscount = len(coords[0])
+    for i in range(coordscount):
+        if not boundaries[int(coords[1][i])][int(coords[0][i])]:
+            blockedX = coords[0][i]
+            blockedY = coords[1][i]
+            minDistance = 1000000
+            waypointIndex = 0
+            for ind, i in enumerate(DEFINED_WAYPOINTS):
+                testDistance = distance(i[0], i[1], blockedX, blockedY)
+                if testDistance < minDistance and not used_waypoints[ind]:
+                    waypointIndex = ind
+                    minDistance = testDistance
+            used_waypoints[waypointIndex] = True
+            previousPose = waypoints[len(waypoints) - 2]
+            nextPose = waypoints[-1]
+            curX = pixeltoMeters(DEFINED_WAYPOINTS[waypointIndex][0])
+            curY = pixeltoMeters(DEFINED_WAYPOINTS[waypointIndex][1])
+            if POSED_WAYPOINTS[waypointIndex]:
+                optimalAngle = 90
+            else:
+                optimalAngle = findOptimalAngleInBetween(previousPose.X(), previousPose.Y(), curX, curY, nextPose.X(), nextPose.Y())
+            waypoints.insert((len(waypoints) - 1), pose(curX, curY, optimalAngle))
+            waypoints[-1] = pose(nextPose.X(), nextPose.Y(), findOptimalAngle(curX, curY, nextPose.X(), nextPose.Y()))
 
-                return True
-        return False
+            return True
+    return False
 
 #find most optimalAngle
 def findOptimalAngle(prevX, prevY, curX, curY):
