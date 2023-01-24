@@ -37,8 +37,9 @@ latestX = 0
 latestY = 0
 gameScale = 1
 
+MAX_FPS = 2000
 fps_record_delay_count = FPS_RECORD_DELAY
-fps_record = collections.deque(max_size=100)
+fps_record = collections.deque(maxlen=100)
 
 #Connect to NetworkTables
 if USINGNETWORKTABLES and __name__ == "__main__":
@@ -52,7 +53,7 @@ robotX = 400
 robotY = 600
 robotAngle = 0
 
-def average(sequence: List[int]) -> float:
+def average(sequence) -> float:
     return sum(sequence) / len(sequence)
 
 # Gets the raw fps, which can be very wrong

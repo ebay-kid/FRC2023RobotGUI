@@ -5,8 +5,10 @@ from PIL import Image
 import pyautogui
 import ctypes
 import trajectoryHandler
-import os
 import tkinter.filedialog as fd
+import os
+
+from util import *
 
 #intialize user32 to read monitor size
 user32 = ctypes.windll.user32
@@ -40,6 +42,13 @@ bDraw = [0] * 2 #background
 rDraw = [0] * 2 #robot
 intersectCoord = (0, 0)
 
+pointsToWaypointsMap = {}
+
+targetedDropoffLocation = 1
+
+def noop():
+    pass
+
 #update FPS
 def updateFps():
     global new_frame_time
@@ -69,17 +78,42 @@ def update_graphics():
     dpg.draw_image("game field", (0,0), (FIELDWIDTH, FIELDHEIGHT), uv_min=(0, 0), uv_max=(1,1), parent="drawlist")
 
     for i in range(len(waypoints)):
+        x, y = waypoints[i][0], waypoints[i][1]
         if i == 0:
-            dpg.draw_circle((waypoints[i][0], waypoints[i][1]), 5, fill=(0, 0, 255, 255), parent="drawlist") # Initial point
+            dpg.draw_circle((x, y), 5, fill=(0, 0, 255, 255), parent="drawlist") # Initial point
         else:
-            dpg.draw_circle((waypoints[i][0], waypoints[i][1]), 5, fill=(255, 0, 0, 255), parent="drawlist") # All other waypoints
+            dpg.draw_circle((x, y), 5, fill=(255, 0, 0, 255), parent="drawlist") # All other waypoints
     
     tDraw = np.zeros(np.shape(trajectoryCoords))
     for i in range(np.shape(trajectoryCoords)[1]):
         tDraw[0][i], tDraw[1][i] = trajectoryCoords[0][i], trajectoryCoords[1][i]
     for i in range(np.shape(trajectoryCoords)[1] - 1):
         x, y = tDraw[0][i], tDraw[1][i]
+        if dpg.does_alias_exist("tr_" + coordToID(x, y)):
+            dpg.delete_item("tr_" + coordToID(x, y)) # i hope this isn't slow af
         dpg.draw_line((x, y), (tDraw[0][i + 1], tDraw[1][i + 1]), color=(255, 0, 0, 255), thickness=3, parent="drawlist", tag = "tr_" + coordToID(x, y))
+
+def findDrawnElementByCoord(x, y):
+    global trajectoryCoords
+    global waypoints
+
+    for i in range(len(waypoints)):
+        coord = waypoints[i]
+        dist = distance(coord[0], coord[1], x, y)
+        if dist <= 5:
+            return "wp_" + coordToID(coord[0], coord[1])
+    for i in range(np.shape(trajectoryCoords)[1]):
+        coord = (trajectoryCoords[0][i], trajectoryCoords[1][i])
+        dist = distance(coord[0], coord[1], x, y)
+        if dist <= 5:
+            return "tr_" + coordToID(coord[0], coord[1])
+    return None
+
+def insertWP():
+    pass
+
+def deleteWP():
+    pass
 
 #create trajectory
 def clickCapturer():
@@ -97,6 +131,11 @@ def clickCapturer():
 
     waypoints.append((latestX, latestY))
     update_graphics()
+
+def keypress(sender, app_data):
+    global targetedDropoffLocation
+    if app_data >= 48 and app_data <= 57:
+        targetedDropoffLocation = app_data - 48
 
 #main APP CONTROL
 def main():
@@ -124,6 +163,7 @@ def main():
     #basically an event handler
     with dpg.handler_registry():
         dpg.add_mouse_click_handler(callback=clickCapturer)
+        dpg.add_key_press_handler(callback=keypress)
     
     #create window for drawings and images
     with dpg.window(tag="Window1"):
@@ -151,8 +191,9 @@ def main():
         global waypoints
 
         file = fd.asksaveasfile(mode='w', filetypes=[('Numpy Save files', '*.npy')], title='Save Trajectory File')
-        fName = file.name
+        fName = fixNpyFileName(file.name)
         file.close()
+        os.remove(file.name) # when you close the file then it trolls and makes the file with a potentially bad name, so delete and then save with the fixed name afterwards.
         trajectoryHandler.writeToFile(trajectoryCoords, fName)
         trajectoryHandler.saveWaypoints(waypoints, fName + "_waypoints.npy")
 
@@ -161,7 +202,7 @@ def main():
         global waypoints
 
         file = fd.askopenfile(mode='r', filetypes=[('Numpy Save files', '*.npy')], title='Select Trajectory File')
-        fName = file.name
+        fName = fixNpyFileName(file.name)
         file.close()
         trajectoryCoords = trajectoryHandler.readFromFile(file.name)
 
@@ -180,6 +221,10 @@ def main():
         dpg.add_button(label="Save Trajectory", callback=saveTrajectory)
         dpg.add_button(label="Load Trajectory", callback=loadTrajectory)
         dpg.add_button(label="Clear Trajectory", callback=clearTrajectory)
+
+    with dpg.window(tag="trajModification", label="Trajectory Modification", no_close=True, min_size=(450, 350), pos=(SCREENWIDTH / 3 + 20, 600)):
+        dpg.add_button(tag="insert_wp", label="Insert Point Between Waypoints", callback=insertWP)
+        dpg.add_button(tag="remove_wp", label="Remove Selected Point", callback=deleteWP)
 
     #show viewport
     dpg.show_viewport()

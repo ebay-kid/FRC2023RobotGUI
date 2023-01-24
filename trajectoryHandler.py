@@ -27,14 +27,10 @@ DEFINED_WAYPOINTS = [
 POSED_WAYPOINTS = [True,True,True,True,False]
 
 def writeToFile(arr: np.ndarray, fileName: str):
-    if not fileName.endswith('.npy'):
-        fileName += '.npy'
     with open(fileName, 'wb') as f:
         np.save(f, arr)
 
 def readFromFile(fileName: str) -> np.ndarray:
-    if not fileName.endswith('.npy'):
-        fileName += '.npy'
     with open(fileName, 'rb') as f:
         return np.load(f)
 

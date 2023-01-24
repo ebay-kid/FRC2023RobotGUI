@@ -32,3 +32,9 @@ def normalizeAngle(angle):
 #distance formula calculation
 def distance(x1, y1, x2, y2):
     return math.sqrt(math.pow((x1 - x2), 2) + math.pow((y1 - y2), 2))
+
+# fix file name
+def fixNpyFileName(fileName):
+    if not fileName.endswith('.npy'):
+        fileName += '.npy'
+    return fileName
