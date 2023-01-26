@@ -38,3 +38,9 @@ def fixNpyFileName(fileName):
     if not fileName.endswith('.npy'):
         fileName += '.npy'
     return fileName
+
+def image_path(name: str) -> str:
+    return "imgs/" + name + ("" if name.endswith(".png") else ".png")
+
+def npy_path(name: str) -> str:
+    return "trajectories/real/" + name + ("" if name.endswith(".npy") else ".npy")

@@ -1,6 +1,8 @@
 from PIL import Image
 import numpy as np
-img = np.array(Image.open("epic_gaiming.png"))
+from util import image_path
+
+img = np.array(Image.open(image_path("epic_gaiming")))
 
 # one means it's legal to go through, 0 means not legal
 new1 = np.ones((len(img), len(img[0])), dtype=bool)
@@ -55,5 +57,5 @@ for i in newImg:
 #img.save("dady.png")
 
 
-with open('boundariesBalls.npy', 'wb') as f:
+with open(npy_path("boundariesBalls"), 'wb') as f:
     np.save(f, newImg)
