@@ -130,6 +130,33 @@ def findDrawnElementByCoord(x, y):
     finder = wpFinder()
     print(finder)
 
+def copium(arr: list, target):
+    """
+    couldn't get np.where() to let me cast the 0, 1 elements in the tuple to int, so I made this
+    """
+    #print("target: ", target)
+    #print("arr: ", np.shape(arr))
+    for i in range(np.shape(arr)[1]):
+        #print(arr[0][i], arr[1][1])
+        if int(arr[0][i]) == target[0] and int(arr[1][i]) == target[1]:
+            return i
+    return None
+
+def doubleCopium(arr: list, target):
+    """
+    Cast the arr list 0, 1 to ints, then check if distance is within 0.5 of target
+    """
+    # print("arr shape: ", np.shape(arr))
+    print("target:", target)
+    for i in range(np.shape(arr)[1]):
+        # print("arr[i]:", arr[i])
+        dist = distance(int(arr[i][0]), int(arr[i][1]), target[0], target[1])
+        # print("dist:", dist)
+        if dist <= 10:
+            print("double copium gaming")
+            return i
+    return None
+
 def wpFinder():
     global clickedElement
     global waypoints
@@ -144,23 +171,33 @@ def wpFinder():
     if clickedElement.startswith("tr_"):
         # Iterate left, right from the point on the trajectory to find the two surrounding waypoints
         clickedElementCoord = idToCoord(clickedElement)
+        print(clickedElementCoord)
         # Get the index of the clicked coordinates in the trajectoryCoords array
-        clickedElementIndex = np.where(trajectoryCoords == clickedElementCoord)[0][0]
+        # clicked = np.where(trajectoryCoords == clickedElementCoord)
+        # clicked = np.where((trajectoryCoords[0] == clickedElementCoord[0]) & (int(trajectoryCoords[1]) == clickedElementCoord[1]))
+        # clickedElementIndex = clicked[0][0]
+        clickedElementIndex = copium(trajectoryCoords, clickedElementCoord)
+        print("clickedElementIndex: ", clickedElementIndex)
         # Iterate towards 0 from clickedElementIndex, until the coordinate equals the coordinate of a waypoint
-        leftIndex = clickedElementIndex
-        while leftIndex >= 0:
-            if (trajectoryCoords[0][leftIndex], trajectoryCoords[1][leftIndex]) in waypoints:
-                break
-            leftIndex -= 1
-        # Iterate towards the end of the trajectoryCoords array from clickedElementIndex, until the coordinate equals the coordinate of a waypoint
-        rightIndex = clickedElementIndex
-        while rightIndex < np.shape(trajectoryCoords)[1]:
-            if (trajectoryCoords[0][rightIndex], trajectoryCoords[1][rightIndex]) in waypoints:
-                break
-            rightIndex += 1
-        # Return the index of the waypoint to the left of the clickedElement and the index of the waypoint to the right, as a tuple
-        return (np.where(waypoints == (trajectoryCoords[0][leftIndex], trajectoryCoords[1][leftIndex]))[0][0], np.where(waypoints[0] == (trajectoryCoords[0][rightIndex], trajectoryCoords[1][rightIndex])[0][0]))
+        leftIdx = None
+        rightIdx = None
 
+        # Iterate from clickedElementIndex -> 0, until the coordinate at the index is equal to the coordinate of a waypoint.
+        # Then, set leftWaypoint to the waypoint's coordinate
+        leftIdx = clickedElementIndex - 1
+        while leftIdx >= 0:
+            coord = (int(trajectoryCoords[0][leftIdx]), int(trajectoryCoords[1][leftIdx]))
+            print("coord:", coord)
+            waypointIdx = doubleCopium(waypoints, coord)
+            if waypointIdx is not None:
+                print('gaming left')
+                leftIdx = waypointIdx
+                break
+            leftIdx -= 1
+
+        rightIdx = leftIdx + 1
+
+        return leftIdx, rightIdx
 
 def insertWP():
     pass
@@ -182,8 +219,8 @@ def clickCapturer():
 
     dpg.set_value(mouseCoordTag, "CLICK: X " + str(latestX) + " Y " + str(latestY))
 
-    # if button tag_mod_mode is true, then we are in modify mode
-    if dpg.get_value("tag_mod_mode"):
+    # if button traj_mod_mode is true, then we are in modify mode
+    if dpg.get_value("traj_mod_mode"):
         findDrawnElementByCoord(latestX, latestY)
     else:
         waypoints.append((latestX, latestY))
@@ -280,7 +317,7 @@ def main():
         dpg.add_button(label="Clear Trajectory", callback=clearTrajectory)
 
     with dpg.window(tag="trajModification", label="Trajectory Modification", no_close=True, min_size=(450, 350), pos=(SCREENWIDTH / 3 + 20, 600)):
-        dpg.add_checkbox(tag="tag_mod_mode", label="Tag Modification Mode")
+        dpg.add_checkbox(tag="traj_mod_mode", label="Trajectory Modification Mode")
         dpg.add_button(tag="insert_wp", label="Insert Point Between Waypoints", callback=insertWP)
         dpg.add_button(tag="remove_wp", label="Remove Selected Point", callback=deleteWP)
 
