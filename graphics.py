@@ -214,12 +214,6 @@ def main():
             dpg.add_checkbox(label="4", callback=clicked(4), tag="checkbox4")
             dpg.add_checkbox(label="5", callback=clicked(5), tag="checkbox5")
 
-    def callExit():
-        os._exit(0)
-
-    with dpg.window(tag="why", label="", no_close=True, min_size=(150, 150),pos=(SCREENWIDTH - 110, 20)):
-        dpg.add_button(tag="exit", label="X", callback=callExit)
-
     #show viewport
     dpg.show_viewport()
 
@@ -233,4 +227,5 @@ def main():
     dpg.destroy_context()
     os._exit(0)
 
-main()
+if __name__ == "__main__":
+    main()

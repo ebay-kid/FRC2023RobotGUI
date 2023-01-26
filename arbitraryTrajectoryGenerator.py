@@ -42,9 +42,8 @@ bDraw = [0] * 2 #background
 rDraw = [0] * 2 #robot
 intersectCoord = (0, 0)
 
-pointsToWaypointsMap = {}
-
 targetedDropoffLocation = 1
+clickedElement = ""
 
 def noop():
     pass
@@ -67,6 +66,13 @@ def flat_img(mat):
 def coordToID(x, y):
     return str(x) + "," + str(y)
 
+def idToCoord(id):
+    """
+    id, with the prefix (tr/wp)_ contained.
+    """
+    temp = id[3:].split(",")
+    return (int(float(temp[0])), int(float(temp[1])))
+
 #redraw all elements
 def update_graphics():
     global trajectoryCoords
@@ -79,35 +85,82 @@ def update_graphics():
 
     for i in range(len(waypoints)):
         x, y = waypoints[i][0], waypoints[i][1]
+        id = "wp_" + coordToID(x, y)
+        if dpg.does_alias_exist(id):
+            dpg.delete_item(id)
         if i == 0:
-            dpg.draw_circle((x, y), 5, fill=(0, 0, 255, 255), parent="drawlist") # Initial point
+            dpg.draw_circle((x, y), 5, fill=(0, 0, 255, 255), parent="drawlist", tag=id) # Initial point
         else:
-            dpg.draw_circle((x, y), 5, fill=(255, 0, 0, 255), parent="drawlist") # All other waypoints
+            dpg.draw_circle((x, y), 5, fill=(255, 0, 0, 255), parent="drawlist", tag=id) # All other waypoints
     
     tDraw = np.zeros(np.shape(trajectoryCoords))
     for i in range(np.shape(trajectoryCoords)[1]):
         tDraw[0][i], tDraw[1][i] = trajectoryCoords[0][i], trajectoryCoords[1][i]
     for i in range(np.shape(trajectoryCoords)[1] - 1):
         x, y = tDraw[0][i], tDraw[1][i]
-        if dpg.does_alias_exist("tr_" + coordToID(x, y)):
-            dpg.delete_item("tr_" + coordToID(x, y)) # i hope this isn't slow af
-        dpg.draw_line((x, y), (tDraw[0][i + 1], tDraw[1][i + 1]), color=(255, 0, 0, 255), thickness=3, parent="drawlist", tag = "tr_" + coordToID(x, y))
+        id = "tr_" + coordToID(x, y)
+        if dpg.does_alias_exist(id):
+            dpg.delete_item(id)
+        dpg.draw_line((x, y), (tDraw[0][i + 1], tDraw[1][i + 1]), color=(255, 0, 0, 255), thickness=3, parent="drawlist", tag=id)
 
 def findDrawnElementByCoord(x, y):
     global trajectoryCoords
     global waypoints
+    global clickedElement
 
+    hasSet = False
     for i in range(len(waypoints)):
         coord = waypoints[i]
         dist = distance(coord[0], coord[1], x, y)
-        if dist <= 5:
-            return "wp_" + coordToID(coord[0], coord[1])
-    for i in range(np.shape(trajectoryCoords)[1]):
-        coord = (trajectoryCoords[0][i], trajectoryCoords[1][i])
-        dist = distance(coord[0], coord[1], x, y)
-        if dist <= 5:
-            return "tr_" + coordToID(coord[0], coord[1])
-    return None
+        if dist <= 50:
+            clickedElement = "wp_" + coordToID(coord[0], coord[1])
+            hasSet = True
+            break
+    if not hasSet:
+        for i in range(np.shape(trajectoryCoords)[1]):
+            coord = (trajectoryCoords[0][i], trajectoryCoords[1][i])
+            dist = distance(coord[0], coord[1], x, y)
+            if dist <= 50:
+                clickedElement = "tr_" + coordToID(coord[0], coord[1])
+                hasSet = True
+                break
+    if not hasSet:
+        clickedElement = ""
+    print("clickedElem: ", clickedElement)
+    finder = wpFinder()
+    print(finder)
+
+def wpFinder():
+    global clickedElement
+    global waypoints
+    global trajectoryCoords
+
+    if clickedElement == "":
+        return None
+    if clickedElement.startswith("wp_"):
+        a = np.array(waypoints)
+        clickedElementCoord = idToCoord(clickedElement)
+        return np.where(a == clickedElementCoord)[0][0]
+    if clickedElement.startswith("tr_"):
+        # Iterate left, right from the point on the trajectory to find the two surrounding waypoints
+        clickedElementCoord = idToCoord(clickedElement)
+        # Get the index of the clicked coordinates in the trajectoryCoords array
+        clickedElementIndex = np.where(trajectoryCoords == clickedElementCoord)[0][0]
+        # Iterate towards 0 from clickedElementIndex, until the coordinate equals the coordinate of a waypoint
+        leftIndex = clickedElementIndex
+        while leftIndex >= 0:
+            if (trajectoryCoords[0][leftIndex], trajectoryCoords[1][leftIndex]) in waypoints:
+                break
+            leftIndex -= 1
+        # Iterate towards the end of the trajectoryCoords array from clickedElementIndex, until the coordinate equals the coordinate of a waypoint
+        rightIndex = clickedElementIndex
+        while rightIndex < np.shape(trajectoryCoords)[1]:
+            if (trajectoryCoords[0][rightIndex], trajectoryCoords[1][rightIndex]) in waypoints:
+                break
+            rightIndex += 1
+        # Return the index of the waypoint to the left of the clickedElement and the index of the waypoint to the right, as a tuple
+        return (np.where(waypoints == (trajectoryCoords[0][leftIndex], trajectoryCoords[1][leftIndex]))[0][0], np.where(waypoints[0] == (trajectoryCoords[0][rightIndex], trajectoryCoords[1][rightIndex])[0][0]))
+
 
 def insertWP():
     pass
@@ -129,7 +182,11 @@ def clickCapturer():
 
     dpg.set_value(mouseCoordTag, "CLICK: X " + str(latestX) + " Y " + str(latestY))
 
-    waypoints.append((latestX, latestY))
+    # if button tag_mod_mode is true, then we are in modify mode
+    if dpg.get_value("tag_mod_mode"):
+        findDrawnElementByCoord(latestX, latestY)
+    else:
+        waypoints.append((latestX, latestY))
     update_graphics()
 
 def keypress(sender, app_data):
@@ -223,6 +280,7 @@ def main():
         dpg.add_button(label="Clear Trajectory", callback=clearTrajectory)
 
     with dpg.window(tag="trajModification", label="Trajectory Modification", no_close=True, min_size=(450, 350), pos=(SCREENWIDTH / 3 + 20, 600)):
+        dpg.add_checkbox(tag="tag_mod_mode", label="Tag Modification Mode")
         dpg.add_button(tag="insert_wp", label="Insert Point Between Waypoints", callback=insertWP)
         dpg.add_button(tag="remove_wp", label="Remove Selected Point", callback=deleteWP)
 
@@ -235,6 +293,7 @@ def main():
         dpg.render_dearpygui_frame()                      
 
     dpg.destroy_context()
+    os._exit(0)
 
 if __name__ == "__main__":
     main()
