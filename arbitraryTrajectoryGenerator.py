@@ -130,7 +130,7 @@ def findDrawnElementByCoord(x, y):
     finder = wpFinder()
     print(finder)
 
-def copium(arr: list, target):
+def castToIntAndCheck(arr: list, target):
     """
     couldn't get np.where() to let me cast the 0, 1 elements in the tuple to int, so I made this
     """
@@ -142,17 +142,17 @@ def copium(arr: list, target):
             return i
     return None
 
-def doubleCopium(arr: list, target):
+def checkInWaypointsOrCloseBy(arr: list, target):
     """
-    Cast the arr list 0, 1 to ints, then check if distance is within 0.5 of target
+    Cast the arr list 0, 1 to ints, then check if distance is within delta of target
     """
-    # print("arr shape: ", np.shape(arr))
+    print("arr shape: ", np.shape(arr))
     print("target:", target)
-    for i in range(np.shape(arr)[1]):
-        # print("arr[i]:", arr[i])
+    for i in range(np.shape(arr)[0]):
+        print("arr[i]:", arr[i])
         dist = distance(int(arr[i][0]), int(arr[i][1]), target[0], target[1])
         # print("dist:", dist)
-        if dist <= 10:
+        if dist <= 5:
             print("double copium gaming")
             return i
     return None
@@ -169,28 +169,21 @@ def wpFinder():
         clickedElementCoord = idToCoord(clickedElement)
         return np.where(a == clickedElementCoord)[0][0]
     if clickedElement.startswith("tr_"):
-        # Iterate left, right from the point on the trajectory to find the two surrounding waypoints
+        # Iterate left from the point on the trajectory to find the previous waypoint
         clickedElementCoord = idToCoord(clickedElement)
-        print(clickedElementCoord)
-        # Get the index of the clicked coordinates in the trajectoryCoords array
-        # clicked = np.where(trajectoryCoords == clickedElementCoord)
-        # clicked = np.where((trajectoryCoords[0] == clickedElementCoord[0]) & (int(trajectoryCoords[1]) == clickedElementCoord[1]))
-        # clickedElementIndex = clicked[0][0]
-        clickedElementIndex = copium(trajectoryCoords, clickedElementCoord)
-        print("clickedElementIndex: ", clickedElementIndex)
-        # Iterate towards 0 from clickedElementIndex, until the coordinate equals the coordinate of a waypoint
-        leftIdx = None
-        rightIdx = None
 
-        # Iterate from clickedElementIndex -> 0, until the coordinate at the index is equal to the coordinate of a waypoint.
-        # Then, set leftWaypoint to the waypoint's coordinate
+        # Get the index of the clicked coordinates in the trajectoryCoords array
+        clickedElementIndex = castToIntAndCheck(trajectoryCoords, clickedElementCoord)
+
+        # Iterate towards 0 from clickedElementIndex, until the coordinate equals the coordinate of a waypoint
+        rightIdx = None
         leftIdx = clickedElementIndex - 1
+
         while leftIdx >= 0:
             coord = (int(trajectoryCoords[0][leftIdx]), int(trajectoryCoords[1][leftIdx]))
-            print("coord:", coord)
-            waypointIdx = doubleCopium(waypoints, coord)
+            # print("coord:", coord)
+            waypointIdx = checkInWaypointsOrCloseBy(waypoints, coord)
             if waypointIdx is not None:
-                print('gaming left')
                 leftIdx = waypointIdx
                 break
             leftIdx -= 1
