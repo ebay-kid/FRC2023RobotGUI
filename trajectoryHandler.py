@@ -187,8 +187,6 @@ def uploadStates(traject: trajectory.Trajectory, ntUpload = True):
     if ntUpload and USINGNETWORKTABLES:
         network_tables.getEntry("robogui", "trajectory").setDoubleArray(upload)
 
-    writeToFile(upload, "trajectory.npy")
-
 def parseStates(arr: np.ndarray):
     states = []
     if arr.size % 7 != 0 or arr.size == 0:
