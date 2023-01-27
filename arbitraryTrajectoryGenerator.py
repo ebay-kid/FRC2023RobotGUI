@@ -86,17 +86,13 @@ def update_graphics():
             dpg.delete_item(id)
         if i == 0:
             if i in selectedWaypoints:
-                print("0, in")
                 dpg.draw_circle((x, y), 5, fill=(0, 255, 255, 255), parent="drawlist", tag=id)
             else:
-                print("0, out")
                 dpg.draw_circle((x, y), 5, fill=(0, 0, 255, 255), parent="drawlist", tag=id) # Initial point
         else:
             if i in selectedWaypoints:
-                print("idk, in")
                 dpg.draw_circle((x, y), 5, fill=(0, 255, 0, 255), parent="drawlist", tag=id)
             else:
-                print("idk, out")
                 dpg.draw_circle((x, y), 5, fill=(255, 0, 0, 255), parent="drawlist", tag=id)
     
     tDraw = np.zeros(np.shape(trajectoryCoords))
@@ -132,7 +128,31 @@ def findDrawnElementByCoord(x, y):
                 break
     if not hasSet:
         clickedElement = ""
-    print("clickedElem: ", clickedElement)
+
+def toggleTrajModMode():
+        global currentMouseCallback
+        def selectWaypoint():
+            global selectedWaypoints
+            global waypoints
+            global clickedElement
+            global currentMouseCallback
+
+            if clickedElement is not None and clickedElement.startswith("wp_"):
+                if len(selectedWaypoints) < 2:
+                    selectedWaypoints.append(int(clickedElement[3:]))
+                    if(len(selectedWaypoints) == 2):
+                        if selectedWaypoints[0] == selectedWaypoints[1]:
+                            selectedWaypoints.pop()
+                        elif selectedWaypoints[0] > selectedWaypoints[1]:
+                            selectedWaypoints.reverse()
+                else:
+                    currentMouseCallback = noop
+                dpg.set_value("selected_wps", str(selectedWaypoints))
+        if dpg.get_value("traj_mod_mode"):
+            currentMouseCallback = selectWaypoint
+        else:
+            currentMouseCallback = noop
+            selectedWaypoints.clear()
 
 def insertWP():
     global currentMouseCallback
@@ -140,10 +160,31 @@ def insertWP():
         # On click, insert waypoint at the clicked location between the curerntly selected indices of currently existing waypoints
         global waypoints
         global selectedWaypoints
+        global latestX, latestY
+        global currentMouseCallback
+
+        if len(selectedWaypoints) < 2:
+            return
+
+        # Insert waypoint at the clicked location
+        waypoints.insert(selectedWaypoints[0] + 1, (latestX, latestY))
+        selectedWaypoints.clear()
+        update_graphics()
+        currentMouseCallback = toggleTrajModMode
     currentMouseCallback = waypointInsertion
 
 def deleteWP():
-    pass
+    global currentMouseCallback
+    global waypoints
+    global selectedWaypoints
+
+    if len(selectedWaypoints) > 1:
+        return
+
+    # Delete waypoint
+    waypoints.pop(selectedWaypoints[0])
+    selectedWaypoints.clear()
+    update_graphics()
 
 #create trajectory
 def clickCapturer():
@@ -176,14 +217,9 @@ def checkInWaypointsOrCloseBy(arr: list, target):
     """
     Cast the arr list 0, 1 to ints, then check if distance is within delta of target
     """
-    print("arr shape: ", np.shape(arr))
-    print("target:", target)
     for i in range(np.shape(arr)[0]):
-        print("arr[i]:", arr[i])
         dist = distance(int(arr[i][0]), int(arr[i][1]), target[0], target[1])
-        # print("dist:", dist)
         if dist <= 5:
-            print("double copium gaming")
             return i
     return None
 
@@ -264,31 +300,6 @@ def main():
         waypoints.clear()
         trajectoryCoords = np.zeros((0, 0))
         update_graphics()
-
-    def toggleTrajModMode():
-        global currentMouseCallback
-        def selectWaypoint():
-            global selectedWaypoints
-            global waypoints
-            global clickedElement
-            global currentMouseCallback
-
-            if clickedElement is not None and clickedElement.startswith("wp_"):
-                if len(selectedWaypoints) < 2:
-                    selectedWaypoints.append(int(clickedElement[3:]))
-                    if(len(selectedWaypoints) == 2):
-                        if selectedWaypoints[0] == selectedWaypoints[1]:
-                            selectedWaypoints.pop()
-                        elif selectedWaypoints[0] > selectedWaypoints[1]:
-                            selectedWaypoints.reverse()
-                else:
-                    currentMouseCallback = noop
-                dpg.set_value("selected_wps", str(selectedWaypoints))
-        if dpg.get_value("traj_mod_mode"):
-            currentMouseCallback = selectWaypoint
-        else:
-            currentMouseCallback = noop
-            selectedWaypoints.clear()
 
     with dpg.window(tag="trajGenWindow", label="Trajectory Generation", no_close=True, min_size=(450, 350), pos=(SCREENWIDTH / 3 + 20, 300)):
         dpg.add_button(label="Remove last point", callback=popWaypoint)
