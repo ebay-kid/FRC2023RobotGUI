@@ -129,6 +129,9 @@ def findDrawnElementByCoord(x, y):
     if not hasSet:
         clickedElement = ""
 
+def reloadTheTextBoxThingy():
+    dpg.set_value("selected_wps", str(selectedWaypoints))
+
 def toggleTrajModMode():
         global currentMouseCallback
         def selectWaypoint():
@@ -147,12 +150,13 @@ def toggleTrajModMode():
                             selectedWaypoints.reverse()
                 else:
                     currentMouseCallback = noop
-                dpg.set_value("selected_wps", str(selectedWaypoints))
+            reloadTheTextBoxThingy()
         if dpg.get_value("traj_mod_mode"):
             currentMouseCallback = selectWaypoint
         else:
             currentMouseCallback = noop
             selectedWaypoints.clear()
+            reloadTheTextBoxThingy()
 
 def insertWP():
     global currentMouseCallback
@@ -169,6 +173,7 @@ def insertWP():
         # Insert waypoint at the clicked location
         waypoints.insert(selectedWaypoints[0] + 1, (latestX, latestY))
         selectedWaypoints.clear()
+        reloadTheTextBoxThingy()
         update_graphics()
         currentMouseCallback = toggleTrajModMode
     currentMouseCallback = waypointInsertion
@@ -184,7 +189,30 @@ def deleteWP():
     # Delete waypoint
     waypoints.pop(selectedWaypoints[0])
     selectedWaypoints.clear()
+    reloadTheTextBoxThingy()
     update_graphics()
+
+def moveWP():
+    global currentMouseCallback
+
+    def waypointMovement():
+        # On click, move waypoint to the clicked location
+        global waypoints
+        global selectedWaypoints
+        global latestX, latestY
+        global currentMouseCallback
+
+        if len(selectedWaypoints) > 1:
+            return
+
+        # Move waypoint
+        waypoints[selectedWaypoints[0]] = (latestX, latestY)
+        selectedWaypoints.clear()
+        reloadTheTextBoxThingy()
+        update_graphics()
+        currentMouseCallback = toggleTrajModMode
+    currentMouseCallback = waypointMovement
+    reloadTheTextBoxThingy()
 
 #create trajectory
 def clickCapturer():
@@ -312,6 +340,7 @@ def main():
         dpg.add_checkbox(tag="traj_mod_mode", label="Trajectory Modification Mode", callback=toggleTrajModMode)
         dpg.add_button(tag="insert_wp", label="Insert Point Between Waypoints", callback=insertWP)
         dpg.add_button(tag="remove_wp", label="Remove Selected Point", callback=deleteWP)
+        dpg.add_button(tag="move_wp", label="Move Selected Point", callback=moveWP)
         dpg.add_text(tag="selected_wps", default_value="Selected Waypoints: None")
 
     #show viewport
