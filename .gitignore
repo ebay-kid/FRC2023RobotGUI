@@ -6,4 +6,4 @@ __pycache__
 .idea
 
 # data for running the program that isn't needed in the repo
-trajectories/real/*
+trajectories/real/**
