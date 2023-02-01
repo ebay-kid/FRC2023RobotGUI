@@ -43,10 +43,15 @@ rDraw = [0] * 2 #robot
 intersectCoord = (0, 0)
 
 targetedDropoffLocation = 1
-clickedElement = ""
+clickedElement = "" # stored as "wp_" + index or "tr_" + index, where index is the index of the element within the respective arrays. "" if no element is selected
+
+selectedWaypoints = []
 
 def noop():
     pass
+
+# mouse callback function, called when mouse is clicked. should take in x and y coordinates rep. current mouse position
+currentMouseCallback = noop
 
 #update FPS
 def updateFps():
@@ -63,19 +68,10 @@ def flat_img(mat):
     dpg_image = np.frombuffer(mat.tobytes(), dtype=np.uint8) / 255.0
     return dpg_image
 
-def coordToID(x, y):
-    return str(x) + "," + str(y)
-
-def idToCoord(id):
-    """
-    id, with the prefix (tr/wp)_ contained.
-    """
-    temp = id[3:].split(",")
-    return (int(float(temp[0])), int(float(temp[1])))
-
 #redraw all elements
 def update_graphics():
     global trajectoryCoords
+    global selectedWaypoints
 
     dpg.set_item_height("drawlist", FIELDHEIGHT)
     dpg.set_item_width("drawlist", FIELDWIDTH)
@@ -85,20 +81,26 @@ def update_graphics():
 
     for i in range(len(waypoints)):
         x, y = waypoints[i][0], waypoints[i][1]
-        id = "wp_" + coordToID(x, y)
+        id = "wp_" + str(i)
         if dpg.does_alias_exist(id):
             dpg.delete_item(id)
         if i == 0:
-            dpg.draw_circle((x, y), 5, fill=(0, 0, 255, 255), parent="drawlist", tag=id) # Initial point
+            if i in selectedWaypoints:
+                dpg.draw_circle((x, y), 5, fill=(0, 255, 255, 255), parent="drawlist", tag=id)
+            else:
+                dpg.draw_circle((x, y), 5, fill=(0, 0, 255, 255), parent="drawlist", tag=id) # Initial point
         else:
-            dpg.draw_circle((x, y), 5, fill=(255, 0, 0, 255), parent="drawlist", tag=id) # All other waypoints
+            if i in selectedWaypoints:
+                dpg.draw_circle((x, y), 5, fill=(0, 255, 0, 255), parent="drawlist", tag=id)
+            else:
+                dpg.draw_circle((x, y), 5, fill=(255, 0, 0, 255), parent="drawlist", tag=id)
     
     tDraw = np.zeros(np.shape(trajectoryCoords))
     for i in range(np.shape(trajectoryCoords)[1]):
         tDraw[0][i], tDraw[1][i] = trajectoryCoords[0][i], trajectoryCoords[1][i]
     for i in range(np.shape(trajectoryCoords)[1] - 1):
         x, y = tDraw[0][i], tDraw[1][i]
-        id = "tr_" + coordToID(x, y)
+        id = "tr_" + str(i)
         if dpg.does_alias_exist(id):
             dpg.delete_item(id)
         dpg.draw_line((x, y), (tDraw[0][i + 1], tDraw[1][i + 1]), color=(255, 0, 0, 255), thickness=3, parent="drawlist", tag=id)
@@ -113,7 +115,7 @@ def findDrawnElementByCoord(x, y):
         coord = waypoints[i]
         dist = distance(coord[0], coord[1], x, y)
         if dist <= 50:
-            clickedElement = "wp_" + coordToID(coord[0], coord[1])
+            clickedElement = "wp_" + str(i)
             hasSet = True
             break
     if not hasSet:
@@ -121,52 +123,96 @@ def findDrawnElementByCoord(x, y):
             coord = (trajectoryCoords[0][i], trajectoryCoords[1][i])
             dist = distance(coord[0], coord[1], x, y)
             if dist <= 50:
-                clickedElement = "tr_" + coordToID(coord[0], coord[1])
+                clickedElement = "tr_" + str(i)
                 hasSet = True
                 break
     if not hasSet:
         clickedElement = ""
-    print("clickedElem: ", clickedElement)
-    finder = wpFinder()
-    print(finder)
 
-def wpFinder():
-    global clickedElement
-    global waypoints
-    global trajectoryCoords
+def reloadTheTextBoxThingy():
+    dpg.set_value("selected_wps", str(selectedWaypoints))
 
-    if clickedElement == "":
-        return None
-    if clickedElement.startswith("wp_"):
-        a = np.array(waypoints)
-        clickedElementCoord = idToCoord(clickedElement)
-        return np.where(a == clickedElementCoord)[0][0]
-    if clickedElement.startswith("tr_"):
-        # Iterate left, right from the point on the trajectory to find the two surrounding waypoints
-        clickedElementCoord = idToCoord(clickedElement)
-        # Get the index of the clicked coordinates in the trajectoryCoords array
-        clickedElementIndex = np.where(trajectoryCoords == clickedElementCoord)[0][0]
-        # Iterate towards 0 from clickedElementIndex, until the coordinate equals the coordinate of a waypoint
-        leftIndex = clickedElementIndex
-        while leftIndex >= 0:
-            if (trajectoryCoords[0][leftIndex], trajectoryCoords[1][leftIndex]) in waypoints:
-                break
-            leftIndex -= 1
-        # Iterate towards the end of the trajectoryCoords array from clickedElementIndex, until the coordinate equals the coordinate of a waypoint
-        rightIndex = clickedElementIndex
-        while rightIndex < np.shape(trajectoryCoords)[1]:
-            if (trajectoryCoords[0][rightIndex], trajectoryCoords[1][rightIndex]) in waypoints:
-                break
-            rightIndex += 1
-        # Return the index of the waypoint to the left of the clickedElement and the index of the waypoint to the right, as a tuple
-        return (np.where(waypoints == (trajectoryCoords[0][leftIndex], trajectoryCoords[1][leftIndex]))[0][0], np.where(waypoints[0] == (trajectoryCoords[0][rightIndex], trajectoryCoords[1][rightIndex])[0][0]))
+def toggleTrajModMode():
+        global currentMouseCallback
+        def selectWaypoint():
+            global selectedWaypoints
+            global waypoints
+            global clickedElement
+            global currentMouseCallback
 
+            if clickedElement is not None and clickedElement.startswith("wp_"):
+                if len(selectedWaypoints) < 2:
+                    selectedWaypoints.append(int(clickedElement[3:]))
+                    if(len(selectedWaypoints) == 2):
+                        if selectedWaypoints[0] == selectedWaypoints[1]:
+                            selectedWaypoints.pop()
+                        elif selectedWaypoints[0] > selectedWaypoints[1]:
+                            selectedWaypoints.reverse()
+                else:
+                    currentMouseCallback = noop
+            reloadTheTextBoxThingy()
+        if dpg.get_value("traj_mod_mode"):
+            currentMouseCallback = selectWaypoint
+        else:
+            currentMouseCallback = noop
+            selectedWaypoints.clear()
+            reloadTheTextBoxThingy()
 
 def insertWP():
-    pass
+    global currentMouseCallback
+    def waypointInsertion():
+        # On click, insert waypoint at the clicked location between the curerntly selected indices of currently existing waypoints
+        global waypoints
+        global selectedWaypoints
+        global latestX, latestY
+        global currentMouseCallback
+
+        if len(selectedWaypoints) < 2:
+            return
+
+        # Insert waypoint at the clicked location
+        waypoints.insert(selectedWaypoints[0] + 1, (latestX, latestY))
+        selectedWaypoints.clear()
+        reloadTheTextBoxThingy()
+        update_graphics()
+        currentMouseCallback = toggleTrajModMode
+    currentMouseCallback = waypointInsertion
 
 def deleteWP():
-    pass
+    global currentMouseCallback
+    global waypoints
+    global selectedWaypoints
+
+    if len(selectedWaypoints) > 1:
+        return
+
+    # Delete waypoint
+    waypoints.pop(selectedWaypoints[0])
+    selectedWaypoints.clear()
+    reloadTheTextBoxThingy()
+    update_graphics()
+
+def moveWP():
+    global currentMouseCallback
+
+    def waypointMovement():
+        # On click, move waypoint to the clicked location
+        global waypoints
+        global selectedWaypoints
+        global latestX, latestY
+        global currentMouseCallback
+
+        if len(selectedWaypoints) > 1:
+            return
+
+        # Move waypoint
+        waypoints[selectedWaypoints[0]] = (latestX, latestY)
+        selectedWaypoints.clear()
+        reloadTheTextBoxThingy()
+        update_graphics()
+        currentMouseCallback = toggleTrajModMode
+    currentMouseCallback = waypointMovement
+    reloadTheTextBoxThingy()
 
 #create trajectory
 def clickCapturer():
@@ -182,9 +228,10 @@ def clickCapturer():
 
     dpg.set_value(mouseCoordTag, "CLICK: X " + str(latestX) + " Y " + str(latestY))
 
-    # if button tag_mod_mode is true, then we are in modify mode
-    if dpg.get_value("tag_mod_mode"):
+    # if button traj_mod_mode is true, then we are in modify mode
+    if dpg.get_value("traj_mod_mode"):
         findDrawnElementByCoord(latestX, latestY)
+        currentMouseCallback()
     else:
         waypoints.append((latestX, latestY))
     update_graphics()
@@ -193,6 +240,16 @@ def keypress(sender, app_data):
     global targetedDropoffLocation
     if app_data >= 48 and app_data <= 57:
         targetedDropoffLocation = app_data - 48
+
+def checkInWaypointsOrCloseBy(arr: list, target):
+    """
+    Cast the arr list 0, 1 to ints, then check if distance is within delta of target
+    """
+    for i in range(np.shape(arr)[0]):
+        dist = distance(int(arr[i][0]), int(arr[i][1]), target[0], target[1])
+        if dist <= 5:
+            return i
+    return None
 
 #main APP CONTROL
 def main():
@@ -279,10 +336,12 @@ def main():
         dpg.add_button(label="Load Trajectory", callback=loadTrajectory)
         dpg.add_button(label="Clear Trajectory", callback=clearTrajectory)
 
-    with dpg.window(tag="trajModification", label="Trajectory Modification", no_close=True, min_size=(450, 350), pos=(SCREENWIDTH / 3 + 20, 600)):
-        dpg.add_checkbox(tag="tag_mod_mode", label="Tag Modification Mode")
+    with dpg.window(tag="trajModification", label="Trajectory Modification", no_close=True, min_size=(550, 350), pos=(SCREENWIDTH / 3 + 20, 600)):
+        dpg.add_checkbox(tag="traj_mod_mode", label="Trajectory Modification Mode", callback=toggleTrajModMode)
         dpg.add_button(tag="insert_wp", label="Insert Point Between Waypoints", callback=insertWP)
         dpg.add_button(tag="remove_wp", label="Remove Selected Point", callback=deleteWP)
+        dpg.add_button(tag="move_wp", label="Move Selected Point", callback=moveWP)
+        dpg.add_text(tag="selected_wps", default_value="Selected Waypoints: None")
 
     #show viewport
     dpg.show_viewport()
