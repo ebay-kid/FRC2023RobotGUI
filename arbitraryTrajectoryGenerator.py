@@ -259,7 +259,7 @@ def main():
     dpg.create_context()
     
     #get image and convert to 1D array to turn into a static texture
-    img = Image.open('gamefield.png')
+    img = Image.open(image_path("gamefield"))
     img_rotated = img.rotate(-90, expand=True)
     dpg_image = flat_img(img_rotated)
 

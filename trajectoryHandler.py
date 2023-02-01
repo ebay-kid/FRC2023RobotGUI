@@ -44,7 +44,7 @@ def loadWaypoints(fileName: str) -> list:
 
 #find bounary issues and request waypoint calculation
 def fixBoundaryTrespassing(coords, waypoints, used_waypoints):
-    boundaries = readFromFile('boundariesBalls.npy')
+    boundaries = readFromFile(npy_path('boundariesBalls'))
     coordscount = len(coords[0])
     for i in range(coordscount):
         if not boundaries[int(coords[1][i])][int(coords[0][i])]:
@@ -136,7 +136,7 @@ def coordsFromTrajectory(traject: trajectory.Trajectory):
 #Main handler of trajectory generation
 def generateTrajectoryVector(startX, startY, startAngle, endX, endY):
     #check if trajectory is "VALID"
-    with open('boundariesBalls.npy', 'rb') as f:
+    with open(npy_path('boundariesBalls'), 'rb') as f:
         boundaries = np.load(f)
         if not boundaries[int(endY)][int(endX)]:
             return
@@ -186,6 +186,8 @@ def uploadStates(traject: trajectory.Trajectory, ntUpload = True):
 
     if ntUpload and USINGNETWORKTABLES:
         network_tables.getEntry("robogui", "trajectory").setDoubleArray(upload)
+
+    writeToFile(upload, npy_path("trajectory"))
 
 def parseStates(arr: np.ndarray):
     states = []
