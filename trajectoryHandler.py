@@ -26,6 +26,11 @@ DEFINED_WAYPOINTS = [
 ]
 POSED_WAYPOINTS = [True,True,True,True,False]
 
+most_recent_trajectory: trajectory.Trajectory = None
+
+def getMostRecentTrajectory() -> trajectory.Trajectory:
+    return most_recent_trajectory
+
 def writeToFile(arr: np.ndarray, fileName: str):
     with open(fileName, 'wb') as f:
         np.save(f, arr)
@@ -96,12 +101,14 @@ def listOfPointsToTrajectory(points: list, initialRotation: float):
     return generateFromStart_Waypoints(initial, waypoints, end)
 
 #create Pose2D object
-def pose(x, y, rot):
+def pose(x, y, rot) -> geometry.Pose2d:
     return geometry.Pose2d(x, y, geometry.Rotation2d.fromDegrees(rot))
 
-getCoordsVectorized = np.vectorize(getCoords)
+vectorizedGetCoords = np.vectorize(getCoords)
 # creates the trajectory
 def generateFromStart_End(waypoints: list):
+    global most_recent_trajectory
+    
     configSettings = trajectory.TrajectoryConfig(MAX_SPEED_MPS, MAX_ACCELERATION_MPS_SQUARED)
     configSettings.setKinematics(DRIVE_KINEMATICS)
     #configSettings.setReversed(True);
@@ -110,11 +117,15 @@ def generateFromStart_End(waypoints: list):
         configSettings
     )
 
+    most_recent_trajectory = new_trajectory
+
     states = np.array(new_trajectory.states())
     uploadStates(new_trajectory)
-    return getCoordsVectorized(states)
+    return vectorizedGetCoords(states)
 
 def generateFromStart_Waypoints(start: geometry.Pose2d, waypoints: list, end: geometry.Pose2d):
+    global most_recent_trajectory
+
     configSettings = trajectory.TrajectoryConfig(MAX_SPEED_MPS, MAX_ACCELERATION_MPS_SQUARED)
     configSettings.setKinematics(DRIVE_KINEMATICS)
     #configSettings.setReversed(True);
@@ -125,13 +136,15 @@ def generateFromStart_Waypoints(start: geometry.Pose2d, waypoints: list, end: ge
         config=configSettings
     )
 
+    most_recent_trajectory = new_trajectory
+
     states = np.array(new_trajectory.states())
     uploadStates(new_trajectory)
-    return getCoordsVectorized(states)
+    return vectorizedGetCoords(states)
 
 def coordsFromTrajectory(traject: trajectory.Trajectory):
     states = np.array(traject.states())
-    return getCoordsVectorized(states)
+    return vectorizedGetCoords(states)
 
 #Main handler of trajectory generation
 def generateTrajectoryVector(startX, startY, startAngle, endX, endY):
@@ -189,7 +202,7 @@ def uploadStates(traject: trajectory.Trajectory, ntUpload = True):
 
     # writeToFile(upload, npy_path("trajectory"))
 
-def parseStates(arr: np.ndarray):
+def parseStates(arr: np.ndarray) -> trajectory.Trajectory:
     states = []
     if arr.size % 7 != 0 or arr.size == 0:
         raise ValueError("Array size must be divisible by 7 and non-zero.")

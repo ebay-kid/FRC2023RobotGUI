@@ -7,6 +7,7 @@ import ctypes
 import trajectoryHandler
 import tkinter.filedialog as fd
 import os
+from wpimath import trajectory
 
 from util import *
 
@@ -114,6 +115,12 @@ def update_graphics():
         if dpg.does_alias_exist(id):
             dpg.delete_item(id)
         dpg.draw_line((x, y), (tDraw[0][i + 1], tDraw[1][i + 1]), color=(255, 0, 0, 255), thickness=3, parent="drawlist", tag=id)
+    traj = trajectoryHandler.getMostRecentTrajectory()
+    time = 0
+    if traj is not None:
+        time = traj.totalTime()
+    dpg.set_value("trajectoryEstTime", f"Estimated time: {time:.2f} sec")
+
 
 def findDrawnElementByCoord(x, y):
     """Given an (x, y), find the element that was clicked (within a small radius)"""
@@ -144,6 +151,15 @@ def findDrawnElementByCoord(x, y):
 def reloadSelectedWaypointsTextbox():
     dpg.set_value("selected_wps", str(selectedWaypoints))
 
+def getTimeAtLocation(waypoint_idx):
+    waypoint = waypoints[waypoint_idx]
+    waypoint = (pixeltoMeters(waypoint[0]), pixeltoMeters(waypoint[1])) # i guess?
+    print(waypoint)
+    for state in trajectoryHandler.getMostRecentTrajectory().states():
+        if distance(state.pose.x, state.pose.y, waypoint[0], waypoint[1]) < 0.5:
+            return f"{state.t:.2f}"
+    return "-1.00"
+
 def toggleTrajModMode():
     """Toggles trajectory modification mode"""
     global currentMouseCallback
@@ -163,6 +179,10 @@ def toggleTrajModMode():
                         selectedWaypoints.reverse()
             else:
                 currentMouseCallback = noop
+        traj = trajectoryHandler.getMostRecentTrajectory()
+        states: list[trajectory.Trajectory.State] = traj.states
+        
+        dpg.set_value("waypointTimeStamps", f"Seconds at each waypoint: {', '.join(getTimeAtLocation(i) for i in selectedWaypoints)}")
         reloadSelectedWaypointsTextbox()
     if dpg.get_value("traj_mod_mode"):
         currentMouseCallback = selectWaypoint
@@ -365,6 +385,10 @@ def main():
         dpg.add_button(tag="remove_wp", label="Remove Selected Point", callback=deleteWP)
         dpg.add_button(tag="move_wp", label="Move Selected Point", callback=moveWP)
         dpg.add_text(tag="selected_wps", default_value="Selected Waypoints: None")
+
+    with dpg.window(tag="trajInfoWindow", label="Trajectory Info", no_close=True, min_size=(850, 350), pos=(SCREENWIDTH / 3 + 500, 10)):
+        dpg.add_text(tag="trajectoryEstTime", default_value="Estimated time: 0 sec")
+        dpg.add_text(tag="waypointTimeStamps", default_value="Seconds at each waypoint: []")
 
     #show viewport
     dpg.show_viewport()
