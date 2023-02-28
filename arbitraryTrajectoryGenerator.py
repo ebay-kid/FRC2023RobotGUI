@@ -87,7 +87,7 @@ def update_graphics():
 
     # Render waypoints
     for i in range(len(waypoints)):
-        x, y = waypoints[i][0], waypoints[i][1]
+        y, x = waypoints[i][0], waypoints[i][1] # we need to invert the rendering because the x, y axes on our coordinate system are inverted.
         id = "wp_" + str(i)
         if dpg.does_alias_exist(id):
             dpg.delete_item(id)
@@ -110,11 +110,11 @@ def update_graphics():
     for i in range(np.shape(trajectoryCoords)[1]):
         tDraw[0][i], tDraw[1][i] = trajectoryCoords[0][i], trajectoryCoords[1][i]
     for i in range(np.shape(trajectoryCoords)[1] - 1):
-        x, y = tDraw[0][i], tDraw[1][i]
+        y, x = tDraw[0][i], tDraw[1][i] # inverted because x, y axes on coord. system are inverted
         id = "tr_" + str(i)
         if dpg.does_alias_exist(id):
             dpg.delete_item(id)
-        dpg.draw_line((x, y), (tDraw[0][i + 1], tDraw[1][i + 1]), color=(255, 0, 0, 255), thickness=3, parent="drawlist", tag=id)
+        dpg.draw_line((x, y), (tDraw[1][i + 1], tDraw[0][i + 1]), color=(255, 0, 0, 255), thickness=3, parent="drawlist", tag=id) # inverted because x, y axes on coord. system are inverted
     traj = trajectoryHandler.getMostRecentTrajectory()
     time = 0
     if traj is not None:
@@ -260,7 +260,9 @@ def clickCapturer():
     latestX = max(pyautogui.position()[0] - 10, 0)
     latestY = max(pyautogui.position()[1] - 25, 0)
 
-    if latestX > FIELDWIDTH_PX or latestY > FIELDHEIGHT_PX:
+    latestX, latestY = latestY, latestX # inverted because x, y axes on coord. system are inverted
+
+    if latestY > FIELDWIDTH_PX or latestX > FIELDHEIGHT_PX:
         return
 
     dpg.set_value(mouseCoordTag, "CLICK: X " + str(latestX) + " Y " + str(latestY))
