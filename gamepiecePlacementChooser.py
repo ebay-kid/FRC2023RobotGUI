@@ -56,13 +56,14 @@ def fixText(text: str):
 SCALE_LETTERS = 69
 
 def onKeyPress(sender, app_data):
+    global currentlySelected
+    
     pressed = chr(app_data).lower()
     idx = KEYBINDS.find(pressed)
-    if idx == -1:
+    if idx == -1 or idx == currentlySelected:
         return
     dpg.delete_item(str(idx))
-    
-    global currentlySelected
+
     dpg.draw_text(pos=POSITIONS[idx], text=fixText(KEYBINDS[idx]), show=True, size=SCALE_LETTERS, color=(0, 255, 0, 255), label=idx, parent="drawlist")
     if currentlySelected != -1:
         dpg.delete_item(str(currentlySelected))
