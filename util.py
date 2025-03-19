@@ -1,4 +1,5 @@
 import math
+from constants import FIELDHEIGHT_IMG, FIELDHEIGHT_REAL_M
 
 #apply zoom to coordinate
 def zoom_coordinate(x, y, zoomX, zoomY, factor):
@@ -14,11 +15,11 @@ def getCoords(state):
 
 #pixel to meter conversion
 def pixeltoMeters(pixels):
-    return pixels * 0.012
+    return pixels * FIELDHEIGHT_REAL_M / FIELDHEIGHT_IMG
 
 #meter to pixel conversion
 def meterstoPixels(meters):
-    return meters / 0.012
+    return meters * FIELDHEIGHT_IMG / FIELDHEIGHT_REAL_M
 
 #normalize angle to [0, 360], while allowing a small delta to equal 0.
 def normalizeAngle(angle):

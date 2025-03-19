@@ -4,6 +4,7 @@ import time
 import numpy as np
 from PIL import Image
 import ctypes
+from constants import ROBOTHEIGHT_REAL_M, ROBOTLENGTH_REAL_M
 from trajectoryHandler import generateTrajectoryVector
 import pyautogui
 import network_tables
@@ -11,6 +12,8 @@ from constants import *
 from util import *
 
 import collections
+
+from util import meterstoPixels
 
 #intialize user32 to read monitor size
 user32 = ctypes.windll.user32
@@ -25,17 +28,17 @@ SCREENWIDTH = user32.GetSystemMetrics(0)
 SCREENHEIGHT = user32.GetSystemMetrics(1)
 FPS_RECORD_DELAY = 4
 
-#Global Tags
-robotCoordTag = 0
-scaleTag = 0 
-mouseCoordTag = 0
-
 #dynamically updating global variables
 trajectoryCoords = np.zeros((500, 500))
 intersectCoords = np.zeros((20, 2))
 latestX = 0
 latestY = 0
 gameScale = 1
+
+#Global Tags
+robotCoordTag = 0
+scaleTag = 0
+mouseCoordTag = 0
 
 MAX_FPS = 2000
 fps_record_delay_count = FPS_RECORD_DELAY
@@ -48,10 +51,13 @@ if USINGNETWORKTABLES and __name__ == "__main__":
         time.sleep(0.3)
 
 #Initialize and Values using NetworkTables
-teamColor = False #True = Blue, False = Red
+teamColor = True #True = Blue, False = Red
 robotX = 400
 robotY = 600
 robotAngle = 0
+
+def nah(sender, app_data):
+    pass
 
 def average(sequence) -> float:
     return sum(sequence) / len(sequence)
@@ -85,31 +91,30 @@ def flat_img(mat):
     dpg_image = np.frombuffer(mat.tobytes(), dtype=np.uint8) / 255.0
     return dpg_image
 
+
+ROBOTLENGTH_IMG = meterstoPixels(ROBOTLENGTH_REAL_M)
+ROBOTHEIGHT_IMG = meterstoPixels(ROBOTHEIGHT_REAL_M)
+
 #redraw all elements
 def update_graphics():
-    tDraw = np.zeros(np.shape(trajectoryCoords))
-    iDraw = np.zeros(np.shape(intersectCoords))
-    bDraw = [0] * 2
-    rDraw = [0] * 2
+    trajectoryDraw = np.zeros(np.shape(trajectoryCoords))
+    backgroundDraw = [0] * 2
+    robotDraw = [0] * 2
     for i in range(np.shape(trajectoryCoords)[1]):
-        tDraw[0][i], tDraw[1][i] = zoom_coordinate(trajectoryCoords[0][i], trajectoryCoords[1][i], robotX, robotY, gameScale)
-    for i in range(len(intersectCoords)):
-        iDraw[i][0], iDraw[i][1] = zoom_coordinate(intersectCoords[i][0], intersectCoords[i][1], robotX, robotY, gameScale)
-    bDraw[0] = zoom_coordinate(0, 0, robotX, robotY, gameScale)
-    bDraw[1] = zoom_coordinate(FIELDWIDTH, FIELDHEIGHT, robotX, robotY, gameScale)
-    rDraw[0] = zoom_coordinate(robotX - ROBOTLENGTH, robotY - ROBOTHEIGHT, robotX, robotY, gameScale)
-    rDraw[1] = zoom_coordinate(robotX + ROBOTLENGTH, robotY + ROBOTHEIGHT, robotX, robotY, gameScale)
+        trajectoryDraw[0][i], trajectoryDraw[1][i] = zoom_coordinate(trajectoryCoords[0][i], trajectoryCoords[1][i], robotX, robotY, gameScale)
+    backgroundDraw[0] = zoom_coordinate(0, 0, robotX, robotY, gameScale)
+    backgroundDraw[1] = zoom_coordinate(FIELDWIDTH_IMG, FIELDHEIGHT_IMG, robotX, robotY, gameScale)
+    robotDraw[0] = zoom_coordinate(robotX - ROBOTLENGTH_IMG, robotY - ROBOTHEIGHT_IMG, robotX, robotY, gameScale)
+    robotDraw[1] = zoom_coordinate(robotX + ROBOTLENGTH_IMG, robotY + ROBOTHEIGHT_IMG, robotX, robotY, gameScale)
 
-    dpg.set_item_height("drawlist", FIELDHEIGHT)
-    dpg.set_item_width("drawlist", SCREENWIDTH/3)
+    dpg.set_item_height("drawlist", FIELDHEIGHT_IMG)
+    dpg.set_item_width("drawlist", FIELDWIDTH_IMG)
     if dpg.does_alias_exist:
         dpg.delete_item("drawlist", children_only=True)
-    dpg.draw_image("game field", bDraw[0], bDraw[1], uv_min=(0, 0), uv_max=(1,1), parent="drawlist")
-    dpg.draw_image("robot texture", rDraw[0], rDraw[1], uv_min=(0, 0), uv_max=(1, 1), parent="drawlist")
+    dpg.draw_image("game field", backgroundDraw[0], backgroundDraw[1], uv_min=(0, 0), uv_max=(1,1), parent="drawlist")
+    dpg.draw_image("robot texture", robotDraw[0], robotDraw[1], uv_min=(0, 0), uv_max=(1, 1), parent="drawlist")
     for i in range(np.shape(trajectoryCoords)[1] - 1):
-        dpg.draw_line((tDraw[0][i], tDraw[1][i]), (tDraw[0][i + 1], tDraw[1][i + 1]), color=(255, 0, 0, 255), thickness=3, parent="drawlist")
-    for i in range(len(iDraw)):
-        dpg.draw_circle(center=(iDraw[i][0], iDraw[i])[1], radius=20, color=(255,255,255,255), parent="drawlist")
+        dpg.draw_line((trajectoryDraw[0][i], trajectoryDraw[1][i]), (trajectoryDraw[0][i + 1], trajectoryDraw[1][i + 1]), color=(255, 0, 0, 255), thickness=3, parent="drawlist")
 
 #create trajectory
 def createTrajectory():
@@ -121,7 +126,7 @@ def createTrajectory():
     prevY = latestY
     latestX, latestY = reverse_zoom(max(pyautogui.position()[0] - 10, 0), max(pyautogui.position()[1] - 25, 0), robotX, robotY, gameScale)
 
-    if(latestX > FIELDWIDTH or latestY > FIELDHEIGHT):
+    if(latestX > FIELDWIDTH_IMG or latestY > FIELDHEIGHT_IMG):
         latestX = prevX
         latestY = prevY
         return
@@ -141,12 +146,12 @@ def main():
     dpg.create_context()
     
     #get image and convert to 1D array to turn into a static texture
-    img = Image.open(image_path('gamefield'))
-    robotImg = Image.open(image_path('robot'))
+    img = Image.open(image_path('field_2025_s'))
+    robotImg = Image.open(image_path('robot_2025'))
     if teamColor:
-        img_rotated = img.rotate(90, expand=True)
+        img_rotated = img.rotate(0, expand=True)
     else:
-        img_rotated = img.rotate(-90, expand=True)
+        img_rotated = img.rotate(180, expand=True)
         
     dpg_image = flat_img(img_rotated)
     dpg_image2 = flat_img(robotImg)
@@ -154,7 +159,7 @@ def main():
     height2 = robotImg.height
     #load all textures
     with dpg.texture_registry(show=False):
-        dpg.add_static_texture(width=FIELDWIDTH, height=FIELDHEIGHT, default_value=dpg_image, tag="game field")
+        dpg.add_static_texture(width=FIELDWIDTH_IMG, height=FIELDHEIGHT_IMG, default_value=dpg_image, tag="game field")
         dpg.add_static_texture(width=width2, height=height2, default_value=dpg_image2, tag="robot texture")
 
     #create viewport
@@ -168,8 +173,8 @@ def main():
     def scale_image(sender, app_data):
         global gameScale
         gameScale += (app_data * 0.05)
-        if gameScale < 1.0:
-            gameScale = 1.0
+        if gameScale < 1:
+            gameScale = 1
         else:
             update_graphics()
         dpg.set_value(scaleTag, "SCALE " + str(round(gameScale, 2)) + "x")
@@ -178,21 +183,22 @@ def main():
     with dpg.handler_registry():
         dpg.add_mouse_wheel_handler(callback=scale_image)
         dpg.add_mouse_click_handler(callback=createTrajectory)
+        dpg.add_mouse_drag_handler(callback=nah)
     
     #create window for drawings and images
-    with dpg.window(tag="Window1"):
+    with dpg.window(tag="Window1", no_scroll_with_mouse=True):
         dpg.set_primary_window("Window1", True)
-        with dpg.drawlist(tag="drawlist", width=SCREENWIDTH / 3, height=FIELDHEIGHT, parent="Window1"):
-            dpg.draw_image("game field", (0, 0), (FIELDWIDTH, FIELDHEIGHT), uv_min=(0, 0), uv_max=(1, 1))
-            dpg.draw_image("robot texture", (robotX - 64, robotY - 64), (robotX + 64, robotY + 64), uv_min=(0, 0), uv_max=(1, 1))
+        with dpg.drawlist(tag="drawlist", width=FIELDWIDTH_IMG, height=FIELDHEIGHT_IMG, parent="Window1"):
+            dpg.draw_image("game field", (0, 0), (FIELDWIDTH_IMG, FIELDHEIGHT_IMG), uv_min=(0, 0), uv_max=(1, 1))
+            dpg.draw_image("robot texture", (robotX - ROBOTLENGTH_IMG / 2, robotY - ROBOTHEIGHT_IMG / 2), (robotX + ROBOTLENGTH_IMG / 2, robotY + ROBOTHEIGHT_IMG / 2), uv_min=(0, 0), uv_max=(1, 1))
 
     #create window for text 
-    with dpg.window(tag="ctlwindow", label="", no_close=True, min_size=(450, 250), pos=(SCREENWIDTH / 3 + 20, 10)):
+    with dpg.window(tag="ctlwindow", label="", no_close=True, min_size=(450, 250), pos=(SCREENWIDTH / 2 + 20, 10)):
         global mouseCoordTag
         global robotCoordTag
         global scaleTag
         fpsTag = dpg.add_text("FPS 0")
-        scaleTag = dpg.add_text("SCALE 1x")
+        scaleTag = dpg.add_text("SCALE " + str(round(gameScale, 2)) + "x")
         robotCoordTag = dpg.add_text("ROBOT: X 0 Y 0")
         mouseCoordTag = dpg.add_text("GOAL: X 0 Y 0")
 
@@ -205,7 +211,7 @@ def main():
             dpg.set_value("checkbox5", num == 5)
         return handleClick
     # create window for control buttons and stuff
-    with dpg.window(tag="ctlwindow2", label="", no_close=True, min_size=(450, 250), pos=(SCREENWIDTH / 3 + 20, 250)):
+    with dpg.window(tag="ctlwindow2", label="", no_close=True, min_size=(450, 250), pos=(SCREENWIDTH / 2 + 20, 250)):
         # Add 5 checkboxes named 1 to 5. If you click on one, then the others will be unchecked. When a checkbox is clicked, set a global variable to the int value of the checkbox.
         with dpg.group(horizontal=True):
             dpg.add_checkbox(label="1", callback=clicked(1), tag="checkbox1")
