@@ -13,6 +13,7 @@ boundsRot = []
 
 DRIVETRAINPIXELADD = 55
 
+
 # iterate through each pixel of numpy image "yay", and if the pixel is transparent, then set the corresponding index in the numpy array "new" to 0. Otherwise, set it to 1.
 def yayChecker(yay, new):
     for i in range(len(yay)):
@@ -24,21 +25,24 @@ def yayChecker(yay, new):
                 new[i][j] = 0
             else:
                 if prevTrueIdx != -1:
-                    bounds.append((i,prevTrueIdx,j))
+                    bounds.append((i, prevTrueIdx, j))
                     prevTrueIdx = -1
                 new[i][j] = 1
+
 
 yayChecker(img, new1)
 rotated = np.rot90(img)
 yayChecker(rotated, new2)
 
+
 # given the index bounds of areas that should be set to 0, set the indices within DRIVETRAINPIXELADD before the start index to 0, and the indices after the start index by DRIVETRAINPIXELADD to 0 as well.
 def setThingsToZero(bounds, new):
     for i in bounds:
-        for j in range(i[1]-DRIVETRAINPIXELADD,i[1]):
+        for j in range(i[1] - DRIVETRAINPIXELADD, i[1]):
             new[i[0]][j] = 0
-        for j in range(i[2],i[2]+DRIVETRAINPIXELADD):
+        for j in range(i[2], i[2] + DRIVETRAINPIXELADD):
             new[i[0]][j] = 0
+
 
 newNew2 = np.rot90(new2, k=3)
 newImg = np.logical_or(new1, newNew2)
@@ -53,8 +57,8 @@ for i in newImg:
         temp += str(int(j))
     print(temp)
 """
-#img = Image.fromarray(new2)
-#img.save("dady.png")
+# img = Image.fromarray(new2)
+# img.save("dady.png")
 
 
 with open(npy_path("boundariesBalls"), 'wb') as f:

@@ -65,8 +65,8 @@ def fixBoundaryTrespassing(coords, waypoints, used_waypoints):
             used_waypoints[waypointIndex] = True
             previousPose = waypoints[len(waypoints) - 2]
             nextPose = waypoints[-1]
-            curX = pixeltoMeters(DEFINED_WAYPOINTS[waypointIndex][0])
-            curY = pixeltoMeters(DEFINED_WAYPOINTS[waypointIndex][1])
+            curX = pixels_to_meters(DEFINED_WAYPOINTS[waypointIndex][0])
+            curY = pixels_to_meters(DEFINED_WAYPOINTS[waypointIndex][1])
             if POSED_WAYPOINTS[waypointIndex]:
                 optimalAngle = 90
             else:
@@ -81,30 +81,30 @@ def fixBoundaryTrespassing(coords, waypoints, used_waypoints):
 def findOptimalAngle(prevX, prevY, curX, curY):
     y = prevY - curY
     x = prevX - curX
-    return normalizeAngle((math.atan2(y, x) * 180 / math.pi) + 180)
+    return normalize_angle((math.atan2(y, x) * 180 / math.pi) + 180)
 
 def findOptimalAngleInBetween(prevX, prevY, curX, curY, nextX, nextY):
     y = prevY - curY
     x = prevX - curX
     y2 = curY - nextY
     x2 = curX - nextX
-    a1 = normalizeAngle((math.atan2(y, x) * 180 / math.pi) + 180)
-    a2 = normalizeAngle((math.atan2(y2, x2) * 180 / math.pi) + 180)
+    a1 = normalize_angle((math.atan2(y, x) * 180 / math.pi) + 180)
+    a2 = normalize_angle((math.atan2(y2, x2) * 180 / math.pi) + 180)
     return (a1 + a2) / 2
 
 def listOfPointsToTrajectory(points: list, initialRotation: float):
-    initial = pose(pixeltoMeters(points[0][0]), pixeltoMeters(points[0][1]), initialRotation)
+    initial = pose(pixels_to_meters(points[0][0]), pixels_to_meters(points[0][1]), initialRotation)
     waypoints = []
     for i in range(1, len(points) - 1):
-        waypoints.append(geometry.Translation2d(pixeltoMeters(points[i][0]), pixeltoMeters(points[i][1])))
-    end = geometry.Pose2d(pixeltoMeters(points[-1][0]), pixeltoMeters(points[-1][1]), findOptimalAngle(pixeltoMeters(points[-2][0]), pixeltoMeters(points[-2][1]), pixeltoMeters(points[-1][0]), pixeltoMeters(points[-1][1])))
+        waypoints.append(geometry.Translation2d(pixels_to_meters(points[i][0]), pixels_to_meters(points[i][1])))
+    end = geometry.Pose2d(pixels_to_meters(points[-1][0]), pixels_to_meters(points[-1][1]), findOptimalAngle(pixels_to_meters(points[-2][0]), pixels_to_meters(points[-2][1]), pixels_to_meters(points[-1][0]), pixels_to_meters(points[-1][1])))
     return generateFromStart_Waypoints(initial, waypoints, end)
 
 #create Pose2D object
 def pose(x, y, rot) -> geometry.Pose2d:
     return geometry.Pose2d(x, y, geometry.Rotation2d.fromDegrees(rot))
 
-vectorizedGetCoords = np.vectorize(getCoords)
+vectorizedGetCoords = np.vectorize(get_coords)
 # creates the trajectory
 def generateFromStart_End(waypoints: list):
     global most_recent_trajectory
@@ -157,7 +157,7 @@ def generateTrajectoryVector(startX, startY, startAngle, endX, endY):
     endAngle = findOptimalAngle(startX,startY,endX,endY) # for our usecase, end angle doesn't matter and we just need the angle requiring the least movement.
 
     #init waypoints
-    waypoints = [pose(pixeltoMeters(startX), pixeltoMeters(startY), startAngle), pose(pixeltoMeters(endX), pixeltoMeters(endY), endAngle)]
+    waypoints = [pose(pixels_to_meters(startX), pixels_to_meters(startY), startAngle), pose(pixels_to_meters(endX), pixels_to_meters(endY), endAngle)]
 
     global used_waypoints
     used_waypoints = np.zeros(len(DEFINED_WAYPOINTS), dtype=bool)
@@ -172,7 +172,7 @@ def generateTrajectoryVector(startX, startY, startAngle, endX, endY):
 
     importantPoints = []
     for i in waypoints:
-        importantPoints.append((meterstoPixels(i.X()), meterstoPixels(i.Y())))
+        importantPoints.append((meters_to_pixels(i.X()), meters_to_pixels(i.Y())))
     return importantPoints, coords
 
 def uploadStates(traject: trajectory.Trajectory, ntUpload = True):
@@ -198,7 +198,7 @@ def uploadStates(traject: trajectory.Trajectory, ntUpload = True):
         upload[shift + 6] = state.curvature
 
     if ntUpload and USINGNETWORKTABLES:
-        network_tables.getEntry("robogui", "trajectory").setDoubleArray(upload)
+        network_tables.get_entry("robogui", "trajectory").setDoubleArray(upload)
 
     # writeToFile(upload, npy_path("trajectory"))
 

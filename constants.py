@@ -1,5 +1,4 @@
-
-#Constants
+# Constants
 
 ENABLEVSYNC = True
 USINGNETWORKTABLES = False
