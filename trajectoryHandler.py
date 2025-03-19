@@ -197,7 +197,7 @@ def uploadStates(traject: trajectory.Trajectory, ntUpload = True):
         upload[shift + 5] = state.pose.rotation().radians()
         upload[shift + 6] = state.curvature
 
-    if ntUpload and USINGNETWORKTABLES:
+    if ntUpload and USING_NETWORK_TABLES:
         network_tables.get_entry("robogui", "trajectory").setDoubleArray(upload)
 
     # writeToFile(upload, npy_path("trajectory"))

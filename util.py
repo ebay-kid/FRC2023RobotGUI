@@ -1,5 +1,8 @@
 import math
-from constants import FIELDHEIGHT_IMG, FIELDHEIGHT_REAL_M
+
+import numpy as np
+
+from constants import FIELD_WIDTH_IMG, FIELD_WIDTH_REAL_M
 
 
 # apply zoom to coordinate
@@ -19,12 +22,12 @@ def get_coords(state):
 
 # pixel to meter conversion
 def pixels_to_meters(pixels):
-    return pixels * FIELDHEIGHT_REAL_M / FIELDHEIGHT_IMG
+    return pixels * FIELD_WIDTH_REAL_M / FIELD_WIDTH_IMG
 
 
 # meter to pixel conversion
 def meters_to_pixels(meters):
-    return meters * FIELDHEIGHT_IMG / FIELDHEIGHT_REAL_M
+    return meters * FIELD_WIDTH_IMG / FIELD_WIDTH_REAL_M
 
 
 # normalize angle to [0, 360], while allowing a small delta to equal 0.
@@ -59,3 +62,10 @@ def npy_path(name: str) -> str:
 
 def average(sequence) -> float:
     return sum(sequence) / len(sequence)
+
+
+# flatten image to be used as Texture
+def flat_img(mat):
+    mat.putalpha(255)
+    dpg_image = np.frombuffer(mat.tobytes(), dtype=np.uint8) / 255.0
+    return dpg_image

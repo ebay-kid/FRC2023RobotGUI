@@ -1,6 +1,6 @@
 from PIL import Image
 import numpy as np
-from util import image_path
+from util import image_path, npy_path
 
 img = np.array(Image.open(image_path("epic_gaiming")))
 
