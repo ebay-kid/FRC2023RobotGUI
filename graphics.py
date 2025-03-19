@@ -52,8 +52,8 @@ if USINGNETWORKTABLES and __name__ == "__main__":
 
 #Initialize and Values using NetworkTables
 teamColor = True #True = Blue, False = Red
-robotX = 400
-robotY = 600
+robotX = meterstoPixels(6)
+robotY = meterstoPixels(5.83)
 robotAngle = 0
 
 def nah(sender, app_data):
@@ -182,7 +182,7 @@ def main():
     #basically an event handler
     with dpg.handler_registry():
         dpg.add_mouse_wheel_handler(callback=scale_image)
-        dpg.add_mouse_click_handler(callback=createTrajectory)
+        # dpg.add_mouse_click_handler(callback=createTrajectory)
         dpg.add_mouse_drag_handler(callback=nah)
     
     #create window for drawings and images
@@ -226,7 +226,7 @@ def main():
     #run program
     while dpg.is_dearpygui_running():
         dpg.set_value(fpsTag, updateFps())
-        #dpg.set_value(robotCoordTag,"ROBOT: X "+str(robotX)+" Y "+str(1334-robotY))
+        dpg.set_value(robotCoordTag,"ROBOT: X "+str(robotX)+" Y "+str(1334-robotY))
         
         dpg.render_dearpygui_frame()                      
 
