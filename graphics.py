@@ -3,13 +3,15 @@ import os
 import time
 
 import dearpygui.dearpygui as dpg
+import ntcore
 import pyautogui
 from PIL import Image
+from wpimath.geometry import Pose2d
 
-import network_tables
+import field_ref
+import network_tables_util
 from constants import *
 from fps import update_fps
-from trajectoryHandler import generateTrajectoryVector
 from util import *
 from util import meters_to_pixels, flat_img
 
@@ -32,16 +34,9 @@ robotCoordTag = 0
 scaleTag = 0
 mouseCoordTag = 0
 
-# Connect to NetworkTables
-if USING_NETWORK_TABLES and __name__ == "__main__":
-    network_tables.init()
-    while not network_tables.is_connected():
-        time.sleep(0.3)
-
 # Initialize and Values using NetworkTables
 teamColor = True  # True = Blue, False = Red
-robotX = meters_to_pixels(5.83)
-robotY = meters_to_pixels(4.025)
+robotX, robotY = field_ref.field_to_screen(5.83, 4.025)
 robotAngle = 0
 
 ROBOT_LENGTH_IMG = meters_to_pixels(ROBOT_LENGTH_REAL_M)
@@ -58,12 +53,14 @@ def update_graphics():
                                                                        robotX, robotY, game_scale)
     background_draw[0] = zoom_coordinate(0, 0, robotX, robotY, game_scale)
     background_draw[1] = zoom_coordinate(FIELD_WIDTH_IMG, FIELD_HEIGHT_IMG, robotX, robotY, game_scale)
-    robot_draw[0] = zoom_coordinate(robotX, robotY, robotX, robotY, game_scale)
-    robot_draw[1] = zoom_coordinate(robotX + ROBOT_LENGTH_IMG, robotY + ROBOT_HEIGHT_IMG, robotX, robotY, game_scale)
+    robot_draw[0] = zoom_coordinate(robotX - ROBOT_LENGTH_IMG / 2, robotY - ROBOT_LENGTH_IMG / 2, robotX, robotY,
+                                    game_scale)
+    robot_draw[1] = zoom_coordinate(robotX + ROBOT_LENGTH_IMG / 2, robotY + ROBOT_HEIGHT_IMG / 2, robotX, robotY,
+                                    game_scale)
 
     dpg.set_item_height("drawlist", FIELD_HEIGHT_IMG)
     dpg.set_item_width("drawlist", FIELD_WIDTH_IMG)
-    if dpg.does_alias_exist:
+    if dpg.does_alias_exist("drawList"):
         dpg.delete_item("drawlist", children_only=True)
     dpg.draw_image("game field", background_draw[0], background_draw[1], uv_min=(0, 0), uv_max=(1, 1),
                    parent="drawlist")
@@ -72,32 +69,6 @@ def update_graphics():
         dpg.draw_line((trajectory_draw[0][i], trajectory_draw[1][i]),
                       (trajectory_draw[0][i + 1], trajectory_draw[1][i + 1]), color=(255, 0, 0, 255), thickness=3,
                       parent="drawlist")
-
-
-# create trajectory
-def create_trajectory():
-    global intersectCoords
-    global trajectoryCoords
-    global latestX
-    global latestY
-    prev_x = latestX
-    prev_y = latestY
-    latestX, latestY = reverse_zoom(max(pyautogui.position()[0] - 10, 0), max(pyautogui.position()[1] - 25, 0), robotX,
-                                    robotY, game_scale)
-
-    if latestX > FIELD_WIDTH_IMG or latestY > FIELD_HEIGHT_IMG:
-        latestX = prev_x
-        latestY = prev_y
-        return
-
-    dpg.set_value(mouseCoordTag, "GOAL: X " + str(latestX) + " Y " + str(latestY))
-
-    if robotY < latestY:
-        temp_angle = robotAngle + 90
-    else:
-        temp_angle = robotAngle - 90
-    intersectCoords, trajectoryCoords = generateTrajectoryVector(robotX, robotY, temp_angle, latestX, latestY)
-    update_graphics()
 
 
 def update_click_pos():
@@ -115,6 +86,15 @@ def update_click_pos():
         return
     dpg.set_value(mouseCoordTag, "GOAL: X " + str(latestX) + " Y " + str(latestY))
     update_graphics()
+
+def update_nt_values():
+    if USING_NETWORK_TABLES and network_tables_util.is_connected():
+        global robotX, robotY
+        a: ntcore.StructTopic
+        robot_pose: Pose2d = network_tables_util.get_instance().getTable("robot").getStructTopic("estimatedOdometryPosition", Pose2d).getEntry(None).get()
+        if robot_pose:
+            robotX, robotY = field_ref.field_to_screen(robot_pose.x, robot_pose.y)
+            update_graphics()
 
 
 # main APP CONTROL
@@ -168,8 +148,8 @@ def main():
         dpg.set_primary_window("Window1", True)
         with dpg.drawlist(tag="drawlist", width=FIELD_WIDTH_IMG, height=FIELD_HEIGHT_IMG, parent="Window1"):
             dpg.draw_image("game field", (0, 0), (FIELD_WIDTH_IMG, FIELD_HEIGHT_IMG), uv_min=(0, 0), uv_max=(1, 1))
-            dpg.draw_image("robot texture", (robotX, robotY),
-                           (robotX + ROBOT_LENGTH_IMG, robotY + ROBOT_HEIGHT_IMG), uv_min=(0, 0), uv_max=(1, 1))
+            dpg.draw_image("robot texture", (robotX - ROBOT_LENGTH_IMG / 2, robotY - ROBOT_HEIGHT_IMG / 2),
+                           (robotX + ROBOT_LENGTH_IMG / 2, robotY + ROBOT_HEIGHT_IMG / 2), uv_min=(0, 0), uv_max=(1, 1))
 
     # create window for text
     with dpg.window(tag="ctlwindow", label="", no_close=True, min_size=(450, 250), pos=(screen_width / 2 + 20, 10)):
@@ -204,10 +184,17 @@ def main():
     # show viewport
     dpg.show_viewport()
 
+    if USING_NETWORK_TABLES: # connect to nt
+        network_tables_util.init()
+        while not network_tables_util.is_connected():
+            time.sleep(0.3)
+
     # run program
     while dpg.is_dearpygui_running():
         dpg.set_value(fps_tag, update_fps())
-        dpg.set_value(robotCoordTag, "ROBOT: X " + str(robotX) + " Y " + str(1334 - robotY))
+        robot_pose_field_x, robot_pose_field_y = field_ref.screen_to_field(robotX, robotY)
+        dpg.set_value(robotCoordTag, "ROBOT: X " + str(robot_pose_field_x) + " Y " + str(robot_pose_field_y))
+        update_nt_values()
 
         dpg.render_dearpygui_frame()
 

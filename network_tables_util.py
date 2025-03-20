@@ -1,6 +1,7 @@
 import ntcore
 import time
 import threading
+from constants import IS_ROBOT_SIM
 
 def wait_for_connect():
     """
@@ -30,6 +31,8 @@ def init():
     """
     inst.startClient4("DS GUI Controller")
     inst.setServerTeam(3952)
+    if IS_ROBOT_SIM:
+        inst.setServer("127.0.0.1")
     inst.startDSClient()
 
     startThread.start()
@@ -56,7 +59,7 @@ def get_entry(table_name, entry_name):
         print("Not connected to robot!")
     return inst.getTable(table_name).getEntry(entry_name)
 
-init()
+# init()
 
 def latency_test():
     """
