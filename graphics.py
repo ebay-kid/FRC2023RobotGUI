@@ -6,6 +6,7 @@ import dearpygui.dearpygui as dpg
 import ntcore
 import pyautogui
 from PIL import Image
+from ntcore import StructEntry
 from wpimath.geometry import Pose2d
 
 import field_ref
@@ -42,9 +43,18 @@ robotAngle = 0
 ROBOT_LENGTH_IMG = meters_to_pixels(ROBOT_LENGTH_REAL_M)
 ROBOT_HEIGHT_IMG = meters_to_pixels(ROBOT_HEIGHT_REAL_M)
 
+should_update_graphics: bool = False
+
+
+def queue_graphics_update():
+    global should_update_graphics
+    should_update_graphics = True
+
 
 # redraw all elements
 def update_graphics():
+    global should_update_graphics
+
     trajectory_draw = np.zeros(np.shape(trajectoryCoords))
     background_draw = [0] * 2
     robot_draw = [0] * 2
@@ -70,6 +80,8 @@ def update_graphics():
                       (trajectory_draw[0][i + 1], trajectory_draw[1][i + 1]), color=(255, 0, 0, 255), thickness=3,
                       parent="drawlist")
 
+    should_update_graphics = False
+
 
 def update_click_pos():
     global latestX
@@ -85,16 +97,21 @@ def update_click_pos():
         latestY = prev_y
         return
     dpg.set_value(mouseCoordTag, "GOAL: X " + str(latestX) + " Y " + str(latestY))
-    update_graphics()
+    queue_graphics_update()
 
 def update_nt_values():
     if USING_NETWORK_TABLES and network_tables_util.is_connected():
         global robotX, robotY
-        a: ntcore.StructTopic
-        robot_pose: Pose2d = network_tables_util.get_instance().getTable("robot").getStructTopic("estimatedOdometryPosition", Pose2d).getEntry(None).get()
-        if robot_pose:
-            robotX, robotY = field_ref.field_to_screen(robot_pose.x, robot_pose.y)
-            update_graphics()
+
+        raw_pose = network_tables_util.get_entry("robot", "raw_pose").getDoubleArray(None)
+
+        if raw_pose:
+            robotX, robotY = field_ref.field_to_screen(raw_pose[0], raw_pose[1])
+            queue_graphics_update()
+
+
+last_nt_update = 0
+last_graphics_update_check = 0
 
 
 # main APP CONTROL
@@ -134,7 +151,7 @@ def main():
         if game_scale < 1:
             game_scale = 1
         else:
-            update_graphics()
+            queue_graphics_update()
         dpg.set_value(scaleTag, "SCALE " + str(round(game_scale, 2)) + "x")
 
     # basically an event handler
@@ -184,17 +201,27 @@ def main():
     # show viewport
     dpg.show_viewport()
 
-    if USING_NETWORK_TABLES: # connect to nt
+    if USING_NETWORK_TABLES:  # connect to nt
         network_tables_util.init()
         while not network_tables_util.is_connected():
             time.sleep(0.3)
 
     # run program
     while dpg.is_dearpygui_running():
+        global last_nt_update, last_graphics_update_check, should_update_graphics
+
         dpg.set_value(fps_tag, update_fps())
         robot_pose_field_x, robot_pose_field_y = field_ref.screen_to_field(robotX, robotY)
         dpg.set_value(robotCoordTag, "ROBOT: X " + str(robot_pose_field_x) + " Y " + str(robot_pose_field_y))
-        update_nt_values()
+        current_time = time.time()
+        if current_time - last_nt_update > 1 / 5:
+            # print("last update", time.time() - last_nt_update)
+            update_nt_values()
+            last_nt_update = current_time
+
+        if current_time - last_graphics_update_check > 1 / 30 and should_update_graphics:
+            update_graphics()
+            last_graphics_update_check = current_time
 
         dpg.render_dearpygui_frame()
 
