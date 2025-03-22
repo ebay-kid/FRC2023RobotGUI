@@ -1,5 +1,6 @@
 import math
 
+import PIL.ImageFile
 import numpy as np
 
 from constants import FIELD_WIDTH_IMG, FIELD_WIDTH_REAL_M
@@ -31,11 +32,11 @@ def meters_to_pixels(meters):
 
 
 # normalize angle to [0, 360], while allowing a small delta to equal 0.
-def normalize_angle(angle):
+def normalize_angle(angle, normalize=False):
     angle %= 360
     if angle < 0:
         angle += 360
-    if abs(360 - angle) < 0.5:
+    if normalize and abs(360 - angle) < 0.5:
         angle = 0
     return angle
 
@@ -65,7 +66,43 @@ def average(sequence) -> float:
 
 
 # flatten image to be used as Texture
-def flat_img(mat):
+def flat_img(mat: PIL.ImageFile) -> np.ndarray:
     mat.putalpha(255)
     dpg_image = np.frombuffer(mat.tobytes(), dtype=np.uint8) / 255.0
     return dpg_image
+
+
+def rotate(v, cos, sin) -> np.ndarray:
+    return np.array((v[0] * cos - v[1] * sin , v[0] * sin + v[1] * cos))
+
+
+def angle_between_points(A, B, C):
+    # Coordinates of points A, B, C
+    x1, y1 = A
+    x2, y2 = B
+    x3, y3 = C
+
+    # Vectors AB and BC
+    AB = (x2 - x1, y2 - y1)
+    BC = (x3 - x2, y3 - y2)
+
+    # Dot product of AB and BC
+    dot_product = AB[0] * BC[0] + AB[1] * BC[1]
+
+    # Magnitudes of AB and BC
+    mag_AB = math.sqrt(AB[0] ** 2 + AB[1] ** 2)
+    mag_BC = math.sqrt(BC[0] ** 2 + BC[1] ** 2)
+
+    # Cosine of the angle
+    cos_theta = dot_product / (mag_AB * mag_BC)
+
+    # Ensure the value is within the domain of acos due to floating-point precision
+    cos_theta = max(-1.0, min(1.0, cos_theta))
+
+    # Angle in radians
+    angle_rad = math.acos(cos_theta)
+
+    # Convert angle to degrees
+    angle_deg = math.degrees(angle_rad)
+
+    return angle_deg

@@ -3,11 +3,8 @@ import os
 import time
 
 import dearpygui.dearpygui as dpg
-import ntcore
 import pyautogui
 from PIL import Image
-from ntcore import StructEntry
-from wpimath.geometry import Pose2d
 
 import field_ref
 import network_tables_util
@@ -25,20 +22,20 @@ screen_width = user32.GetSystemMetrics(0)
 screen_height = user32.GetSystemMetrics(1)
 
 # dynamically updating global variables
-trajectoryCoords = np.zeros((500, 500))
-latestX = 0
-latestY = 0
+trajectory_coords = np.zeros((500, 500))
+latest_x = 0
+latest_y = 0
 game_scale = 1
 
 # Global Tags
-robotCoordTag = 0
-scaleTag = 0
-mouseCoordTag = 0
+robot_coord_tag = 0
+scale_tag = 0
+mouse_coord_tag = 0
 
 # Initialize and Values using NetworkTables
-teamColor = True  # True = Blue, False = Red
-robotX, robotY = field_ref.field_to_screen(5.83, 4.025)
-robotAngle = 0
+team_color = True  # True = Blue, False = Red
+real_robot: field_ref.Robot = field_ref.Robot(5.83, 4.025, 0, 255)
+robot_angle = 0
 
 ROBOT_LENGTH_IMG = meters_to_pixels(ROBOT_LENGTH_REAL_M)
 ROBOT_HEIGHT_IMG = meters_to_pixels(ROBOT_HEIGHT_REAL_M)
@@ -53,60 +50,97 @@ def queue_graphics_update():
 
 # redraw all elements
 def update_graphics():
-    global should_update_graphics
-
-    trajectory_draw = np.zeros(np.shape(trajectoryCoords))
-    background_draw = [0] * 2
-    robot_draw = [0] * 2
-    for i in range(np.shape(trajectoryCoords)[1]):
-        trajectory_draw[0][i], trajectory_draw[1][i] = zoom_coordinate(trajectoryCoords[0][i], trajectoryCoords[1][i],
-                                                                       robotX, robotY, game_scale)
-    background_draw[0] = zoom_coordinate(0, 0, robotX, robotY, game_scale)
-    background_draw[1] = zoom_coordinate(FIELD_WIDTH_IMG, FIELD_HEIGHT_IMG, robotX, robotY, game_scale)
-    robot_draw[0] = zoom_coordinate(robotX - ROBOT_LENGTH_IMG / 2, robotY - ROBOT_LENGTH_IMG / 2, robotX, robotY,
-                                    game_scale)
-    robot_draw[1] = zoom_coordinate(robotX + ROBOT_LENGTH_IMG / 2, robotY + ROBOT_HEIGHT_IMG / 2, robotX, robotY,
-                                    game_scale)
+    global should_update_graphics, robot_draw_count
 
     dpg.set_item_height("drawlist", FIELD_HEIGHT_IMG)
     dpg.set_item_width("drawlist", FIELD_WIDTH_IMG)
-    if dpg.does_alias_exist("drawList"):
+    if dpg.does_alias_exist("drawlist"):
         dpg.delete_item("drawlist", children_only=True)
-    dpg.draw_image("game field", background_draw[0], background_draw[1], uv_min=(0, 0), uv_max=(1, 1),
-                   parent="drawlist")
-    dpg.draw_image("robot texture", robot_draw[0], robot_draw[1], uv_min=(0, 0), uv_max=(1, 1), parent="drawlist")
-    for i in range(np.shape(trajectoryCoords)[1] - 1):
-        dpg.draw_line((trajectory_draw[0][i], trajectory_draw[1][i]),
-                      (trajectory_draw[0][i + 1], trajectory_draw[1][i + 1]), color=(255, 0, 0, 255), thickness=3,
-                      parent="drawlist")
+
+    draw_background()
+    draw_robot(real_robot)
+    # draw_trajectory(trajectory_coords)
 
     should_update_graphics = False
 
 
+def draw_robot(robot: field_ref.Robot):
+    robot_coords = field_ref.field_to_screen(robot.x, robot.y)
+    angle = (90-robot.rot) * math.pi / 180.0
+    cos = math.cos(angle)
+    sin = math.sin(angle)
+    width2 = ROBOT_LENGTH_IMG / 2.0
+    height2 = ROBOT_HEIGHT_IMG / 2.0
+    center = np.array(robot_coords)
+    # print(cos, sin)
+    p1 = center + rotate((-width2, -height2), cos, sin)
+    p2 = center + rotate((width2, -height2), cos, sin)
+    p3 = center + rotate((width2, height2), cos, sin)
+    p4 = center + rotate((-width2, height2), cos, sin)
+    # print(p1, p2, p3, p4)
+    # print(distance(*p1, *p2), distance(*p2, *p3), distance(*p1, *p4), distance(*p3, *p4))
+
+    dpg.draw_image_quad("robot_image",
+                        p1,
+                        p2,
+                        p3,
+                        p4,
+                        uv1=(0, 0),
+                        uv2=(1, 0),
+                        uv3=(1, 1),
+                        uv4=(0, 1),
+                        parent="drawlist",
+                        color=(255, 255, 255, robot.opacity))
+        # dpg.draw_quad(p1, p2, p3, p4, tag="q", parent="r", color=(0,255,0,255))
+    # dpg.apply_transform("r", dpg.create_translation_matrix(robot_coords))
+
+
+def draw_background():
+    background_draw = [0] * 2
+    background_draw[0] = 0, 0
+    background_draw[1] = FIELD_WIDTH_IMG, FIELD_HEIGHT_IMG
+    dpg.draw_image("game field", background_draw[0], background_draw[1], uv_min=(0, 0), uv_max=(1, 1),
+                   parent="drawlist")
+
+
+def draw_trajectory(traj_coords: list[list[float]]):
+    trajectory_draw = np.zeros(np.shape(traj_coords))
+
+    for i in range(np.shape(traj_coords)[1]):
+        trajectory_draw[0][i], trajectory_draw[1][i] = trajectory_coords[0][i], trajectory_coords[1][i]
+    for i in range(np.shape(trajectory_draw)[1] - 1):
+        dpg.draw_line((trajectory_draw[0][i], trajectory_draw[1][i]),
+                      (trajectory_draw[0][i + 1], trajectory_draw[1][i + 1]), color=(255, 0, 0, 255), thickness=3,
+                      parent="drawlist")
+
+
 def update_click_pos():
-    global latestX
-    global latestY
+    global latest_x
+    global latest_y
 
-    prev_x = latestX
-    prev_y = latestY
-    latestX, latestY = reverse_zoom(max(pyautogui.position()[0] - 8, 0), max(pyautogui.position()[1] - 8, 0), robotX,
-                                    robotY, game_scale)
+    prev_x = latest_x
+    prev_y = latest_y
+    latest_x, latest_y = reverse_zoom(max(pyautogui.position()[0] - 8, 0), max(pyautogui.position()[1] - 8, 0),
+                                      real_robot.x,
+                                      real_robot.y, game_scale)
 
-    if latestX > FIELD_WIDTH_IMG or latestY > FIELD_HEIGHT_IMG:
-        latestX = prev_x
-        latestY = prev_y
+    if latest_x > FIELD_WIDTH_IMG or latest_y > FIELD_HEIGHT_IMG:
+        latest_x = prev_x
+        latest_y = prev_y
         return
-    dpg.set_value(mouseCoordTag, "GOAL: X " + str(latestX) + " Y " + str(latestY))
+    dpg.set_value(mouse_coord_tag, "GOAL: X " + str(latest_x) + " Y " + str(latest_y))
     queue_graphics_update()
+
 
 def update_nt_values():
     if USING_NETWORK_TABLES and network_tables_util.is_connected():
-        global robotX, robotY
+        global real_robot
 
         raw_pose = network_tables_util.get_entry("robot", "raw_pose").getDoubleArray(None)
 
         if raw_pose:
-            robotX, robotY = field_ref.field_to_screen(raw_pose[0], raw_pose[1])
+            real_robot.x, real_robot.y = raw_pose[0], raw_pose[1]
+            real_robot.rot = raw_pose[2]
             queue_graphics_update()
 
 
@@ -122,7 +156,8 @@ def main():
     # get image and convert to 1D array to turn into a static texture
     img = Image.open(image_path('field_2025_m_rot'))
     robot_img = Image.open(image_path('robot_2025'))
-    if teamColor:
+    # w, h, c, d = dpg.load_image(image_path('big_robot_2025'))
+    if team_color:
         img_rotated = img.rotate(0, expand=True)
     else:
         img_rotated = img.rotate(180, expand=True)
@@ -135,8 +170,8 @@ def main():
     with dpg.texture_registry(show=False):
         dpg.add_static_texture(width=FIELD_WIDTH_IMG, height=FIELD_HEIGHT_IMG, default_value=dpg_image,
                                tag="game field")
-        dpg.add_static_texture(width=width2, height=height2, default_value=dpg_image2, tag="robot texture")
-
+        dpg.add_static_texture(width=width2, height=height2, default_value=dpg_image2, tag="robot_image")
+        # dpg.add_static_texture(w, h, d, tag="robot_image")
     # create viewport
     dpg.create_viewport(title='Team 3952', width=screen_width, height=screen_height)
     dpg.set_viewport_vsync(ENABLE_VSYNC)
@@ -152,7 +187,7 @@ def main():
             game_scale = 1
         else:
             queue_graphics_update()
-        dpg.set_value(scaleTag, "SCALE " + str(round(game_scale, 2)) + "x")
+        dpg.set_value(scale_tag, "SCALE " + str(round(game_scale, 2)) + "x")
 
     # basically an event handler
     with dpg.handler_registry():
@@ -164,19 +199,18 @@ def main():
     with dpg.window(tag="Window1", no_scroll_with_mouse=True):
         dpg.set_primary_window("Window1", True)
         with dpg.drawlist(tag="drawlist", width=FIELD_WIDTH_IMG, height=FIELD_HEIGHT_IMG, parent="Window1"):
-            dpg.draw_image("game field", (0, 0), (FIELD_WIDTH_IMG, FIELD_HEIGHT_IMG), uv_min=(0, 0), uv_max=(1, 1))
-            dpg.draw_image("robot texture", (robotX - ROBOT_LENGTH_IMG / 2, robotY - ROBOT_HEIGHT_IMG / 2),
-                           (robotX + ROBOT_LENGTH_IMG / 2, robotY + ROBOT_HEIGHT_IMG / 2), uv_min=(0, 0), uv_max=(1, 1))
+            queue_graphics_update()
+
 
     # create window for text
     with dpg.window(tag="ctlwindow", label="", no_close=True, min_size=(450, 250), pos=(screen_width / 2 + 20, 10)):
-        global mouseCoordTag
-        global robotCoordTag
-        global scaleTag
+        global mouse_coord_tag
+        global robot_coord_tag
+        global scale_tag
         fps_tag = dpg.add_text("FPS 0")
-        scaleTag = dpg.add_text("SCALE " + str(round(game_scale, 2)) + "x")
-        robotCoordTag = dpg.add_text("ROBOT: X 0 Y 0")
-        mouseCoordTag = dpg.add_text("GOAL: X 0 Y 0")
+        scale_tag = dpg.add_text("SCALE " + str(round(game_scale, 2)) + "x")
+        robot_coord_tag = dpg.add_text("ROBOT: X 0 Y 0")
+        mouse_coord_tag = dpg.add_text("GOAL: X 0 Y 0")
 
     def clicked(num):
         def handle_click():
@@ -205,16 +239,19 @@ def main():
         network_tables_util.init()
         while not network_tables_util.is_connected():
             time.sleep(0.3)
+        queue_graphics_update()
 
     # run program
     while dpg.is_dearpygui_running():
         global last_nt_update, last_graphics_update_check, should_update_graphics
 
         dpg.set_value(fps_tag, update_fps())
-        robot_pose_field_x, robot_pose_field_y = field_ref.screen_to_field(robotX, robotY)
-        dpg.set_value(robotCoordTag, "ROBOT: X " + str(robot_pose_field_x) + " Y " + str(robot_pose_field_y))
+        robot_pose_field_x, robot_pose_field_y, robot_pose_field_rot = real_robot.x, real_robot.y, real_robot.rot
+        dpg.set_value(robot_coord_tag,
+                      "ROBOT: X " + str(robot_pose_field_x) + " Y " + str(robot_pose_field_y) + " ROT " + str(
+                          robot_pose_field_rot))
         current_time = time.time()
-        if current_time - last_nt_update > 1 / 5:
+        if current_time - last_nt_update > 1 / 20:
             # print("last update", time.time() - last_nt_update)
             update_nt_values()
             last_nt_update = current_time
