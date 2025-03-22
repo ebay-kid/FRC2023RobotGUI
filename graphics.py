@@ -3,6 +3,7 @@ import os
 import time
 
 import dearpygui.dearpygui as dpg
+import numpy as np
 import pyautogui
 from PIL import Image
 
@@ -22,7 +23,7 @@ screen_width = user32.GetSystemMetrics(0)
 screen_height = user32.GetSystemMetrics(1)
 
 # dynamically updating global variables
-trajectory_coords = np.zeros((500, 500))
+trajectory_coords: list[float] = []
 latest_x = 0
 latest_y = 0
 game_scale = 1
@@ -50,7 +51,7 @@ def queue_graphics_update():
 
 # redraw all elements
 def update_graphics():
-    global should_update_graphics, robot_draw_count
+    global should_update_graphics
 
     dpg.set_item_height("drawlist", FIELD_HEIGHT_IMG)
     dpg.set_item_width("drawlist", FIELD_WIDTH_IMG)
@@ -59,14 +60,14 @@ def update_graphics():
 
     draw_background()
     draw_robot(real_robot)
-    # draw_trajectory(trajectory_coords)
+    draw_trajectory(trajectory_coords)
 
     should_update_graphics = False
 
 
 def draw_robot(robot: field_ref.Robot):
     robot_coords = field_ref.field_to_screen(robot.x, robot.y)
-    angle = (90-robot.rot) * math.pi / 180.0
+    angle = (90 - robot.rot) * math.pi / 180.0
     cos = math.cos(angle)
     sin = math.sin(angle)
     width2 = ROBOT_LENGTH_IMG / 2.0
@@ -91,7 +92,7 @@ def draw_robot(robot: field_ref.Robot):
                         uv4=(0, 1),
                         parent="drawlist",
                         color=(255, 255, 255, robot.opacity))
-        # dpg.draw_quad(p1, p2, p3, p4, tag="q", parent="r", color=(0,255,0,255))
+    # dpg.draw_quad(p1, p2, p3, p4, tag="q", parent="r", color=(0,255,0,255))
     # dpg.apply_transform("r", dpg.create_translation_matrix(robot_coords))
 
 
@@ -103,15 +104,30 @@ def draw_background():
                    parent="drawlist")
 
 
-def draw_trajectory(traj_coords: list[list[float]]):
-    trajectory_draw = np.zeros(np.shape(traj_coords))
+def draw_trajectory(traj_coords: list[float]):
+    # print(len(traj_coords))
+    t_coords = np.zeros((int(len(traj_coords) / 3), 3), dtype=np.float16)
+    # print(np.shape(t_coords))
+    count = 0
+    subcount = 0
+    for x in traj_coords:
+        t_coords[count][subcount] = x
+        subcount += 1
+        if subcount == 3:
+            subcount = 0
+            count += 1
 
-    for i in range(np.shape(traj_coords)[1]):
-        trajectory_draw[0][i], trajectory_draw[1][i] = trajectory_coords[0][i], trajectory_coords[1][i]
-    for i in range(np.shape(trajectory_draw)[1] - 1):
-        dpg.draw_line((trajectory_draw[0][i], trajectory_draw[1][i]),
-                      (trajectory_draw[0][i + 1], trajectory_draw[1][i + 1]), color=(255, 0, 0, 255), thickness=3,
+    # print(t_coords)
+
+    for i in range(np.shape(t_coords)[0] - 1):
+        dpg.draw_line(field_ref.field_to_screen(t_coords[i][0], t_coords[i][1]),
+                      field_ref.field_to_screen(t_coords[i + 1][0], t_coords[i + 1][1]), color=(255, 0, 0, 255),
+                      thickness=3,
                       parent="drawlist")
+        if i % 10 == 0:
+            draw_robot(field_ref.Robot(*t_coords[i], 128))
+    if np.shape(t_coords)[0] > 0:
+        draw_robot(field_ref.Robot(*t_coords[np.shape(t_coords)[0] - 1], 128))
 
 
 def update_click_pos():
@@ -134,7 +150,7 @@ def update_click_pos():
 
 def update_nt_values():
     if USING_NETWORK_TABLES and network_tables_util.is_connected():
-        global real_robot
+        global real_robot, trajectory_coords
 
         raw_pose = network_tables_util.get_entry("robot", "raw_pose").getDoubleArray(None)
 
@@ -142,6 +158,12 @@ def update_nt_values():
             real_robot.x, real_robot.y = raw_pose[0], raw_pose[1]
             real_robot.rot = raw_pose[2]
             queue_graphics_update()
+
+        traj_chosen_path: list[float] = network_tables_util.get_entry("robot", "chosen_path").getDoubleArray(None)
+        traj_pathfinder: list[float] = network_tables_util.get_entry("robot", "pathfinder").getDoubleArray(None)
+
+        if traj_chosen_path and traj_pathfinder:
+            trajectory_coords = traj_pathfinder + traj_chosen_path
 
 
 last_nt_update = 0
@@ -200,7 +222,6 @@ def main():
         dpg.set_primary_window("Window1", True)
         with dpg.drawlist(tag="drawlist", width=FIELD_WIDTH_IMG, height=FIELD_HEIGHT_IMG, parent="Window1"):
             queue_graphics_update()
-
 
     # create window for text
     with dpg.window(tag="ctlwindow", label="", no_close=True, min_size=(450, 250), pos=(screen_width / 2 + 20, 10)):

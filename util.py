@@ -73,7 +73,7 @@ def flat_img(mat: PIL.ImageFile) -> np.ndarray:
 
 
 def rotate(v, cos, sin) -> np.ndarray:
-    return np.array((v[0] * cos - v[1] * sin , v[0] * sin + v[1] * cos))
+    return np.array((v[0] * cos - v[1] * sin, v[0] * sin + v[1] * cos))
 
 
 def angle_between_points(A, B, C):

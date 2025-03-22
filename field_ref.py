@@ -14,15 +14,11 @@ class Robot:
         self.opacity = opacity
 
 
-class Trajectory:
-    def __init__(self, points: np.ndarray[np.ndarray[np.float64]]):
-        self.points = points
-
-
 def field_to_screen(x: float, y: float):
     # Screen y increases as it goes down the screen, against common sense
     # X increases linearly
     return meters_to_pixels(x), FIELD_HEIGHT_IMG - meters_to_pixels(y)
+
 
 def screen_to_field(x: float, y: float):
     # see field_to_screen
