@@ -76,25 +76,25 @@ def rotate(v, cos, sin) -> np.ndarray:
     return np.array((v[0] * cos - v[1] * sin, v[0] * sin + v[1] * cos))
 
 
-def angle_between_points(A, B, C):
+def angle_between_points(a, b, c):
     # Coordinates of points A, B, C
-    x1, y1 = A
-    x2, y2 = B
-    x3, y3 = C
+    x1, y1 = a
+    x2, y2 = b
+    x3, y3 = c
 
     # Vectors AB and BC
-    AB = (x2 - x1, y2 - y1)
-    BC = (x3 - x2, y3 - y2)
+    ab = (x2 - x1, y2 - y1)
+    bc = (x3 - x2, y3 - y2)
 
     # Dot product of AB and BC
-    dot_product = AB[0] * BC[0] + AB[1] * BC[1]
+    dot_product = ab[0] * bc[0] + ab[1] * bc[1]
 
     # Magnitudes of AB and BC
-    mag_AB = math.sqrt(AB[0] ** 2 + AB[1] ** 2)
-    mag_BC = math.sqrt(BC[0] ** 2 + BC[1] ** 2)
+    mag_ab = math.sqrt(ab[0] ** 2 + ab[1] ** 2)
+    mag_bc = math.sqrt(bc[0] ** 2 + bc[1] ** 2)
 
     # Cosine of the angle
-    cos_theta = dot_product / (mag_AB * mag_BC)
+    cos_theta = dot_product / (mag_ab * mag_bc)
 
     # Ensure the value is within the domain of acos due to floating-point precision
     cos_theta = max(-1.0, min(1.0, cos_theta))

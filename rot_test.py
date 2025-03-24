@@ -1,20 +1,18 @@
 import dearpygui.dearpygui as dpg
 import math
 
-from PIL import Image
-
 from util import image_path, rotate
 
 from importlib.metadata import version
 
 print("CHECKING DPG VERSION, MAKE SURE IT'S VERSION 69.0.0")
-print(version('dearpygui')) # CHECK THIS
+print(version('dearpygui'))  # CHECK THIS
 
 dpg.create_context()
 dpg.create_viewport()
 dpg.setup_dearpygui()
 width, height, channels, data = dpg.load_image(image_path('robot_2025'))
-# robot_img = Image.open(image_path('robot_2025'))  
+# robot_img = Image.open(image_path('robot_2025'))
 # r  = util.flat_img(robot_img)
 with dpg.texture_registry(show=False):
     dpg.add_raw_texture(width, height, data, tag="robo")

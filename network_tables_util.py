@@ -1,4 +1,4 @@
-import ntcore
+import ntcore  # comes from robotpy
 import time
 import threading
 from constants import IS_ROBOT_SIM
