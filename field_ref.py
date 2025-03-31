@@ -12,6 +12,10 @@ class Robot:
         self.rot = rot_deg
         self.opacity = opacity
 
+class Trajectory:
+    def __init__(self, points: list[float], color: list[int]):
+        self.points = points
+        self.color = color
 
 def field_to_screen(x: float, y: float):
     # Screen y increases as it goes down the screen, against common sense

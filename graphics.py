@@ -8,6 +8,7 @@ from PIL import Image
 
 import field_ref
 import network_tables_util
+import keylogger
 from constants import *
 from fps import update_fps
 from util import *
@@ -22,7 +23,7 @@ screen_width = user32.GetSystemMetrics(0)
 screen_height = user32.GetSystemMetrics(1)
 
 # dynamically updating global variables
-trajectory_coords: list[float] = []
+trajectories: list[field_ref.Trajectory] = []
 latest_x = 0
 latest_y = 0
 game_scale = 1
@@ -55,11 +56,13 @@ def update_graphics():
     dpg.set_item_height("drawlist", FIELD_HEIGHT_IMG)
     dpg.set_item_width("drawlist", FIELD_WIDTH_IMG)
     if dpg.does_alias_exist("drawlist"):
-        dpg.delete_item("drawlist", children_only=True)
+        dpg.delete_item("drawlist", children_only       =True)
 
     draw_background()
     draw_robot(real_robot)
-    draw_trajectory(trajectory_coords)
+
+    for trajectory in trajectories:
+        draw_trajectory(trajectory)
 
     should_update_graphics = False
 
@@ -103,8 +106,9 @@ def draw_background():
                    parent="drawlist")
 
 
-def draw_trajectory(traj_coords: list[float]):
+def draw_trajectory(traj: field_ref.Trajectory):
     # print(len(traj_coords))
+    traj_coords = traj.points
     t_coords = np.zeros((int(len(traj_coords) / 3), 3), dtype=np.float16)
     # print(np.shape(t_coords))
     count = 0
@@ -120,7 +124,7 @@ def draw_trajectory(traj_coords: list[float]):
 
     for i in range(np.shape(t_coords)[0] - 1):
         dpg.draw_line(field_ref.field_to_screen(t_coords[i][0], t_coords[i][1]),
-                      field_ref.field_to_screen(t_coords[i + 1][0], t_coords[i + 1][1]), color=(255, 0, 0, 255),
+                      field_ref.field_to_screen(t_coords[i + 1][0], t_coords[i + 1][1]), color=traj.color,
                       thickness=3,
                       parent="drawlist")
         if i % 10 == 0:
@@ -149,7 +153,7 @@ def update_click_pos():
 
 def update_nt_values():
     if USING_NETWORK_TABLES and network_tables_util.is_connected():
-        global real_robot, trajectory_coords
+        global real_robot, trajectories
 
         raw_pose = network_tables_util.get_entry("robot", "raw_pose").getDoubleArray(None)
 
@@ -158,11 +162,11 @@ def update_nt_values():
             real_robot.rot = raw_pose[2]
             queue_graphics_update()
 
-        traj_chosen_path: list[float] = network_tables_util.get_entry("robot", "chosen_path").getDoubleArray(None)
-        traj_pathfinder: list[float] = network_tables_util.get_entry("robot", "pathfinder").getDoubleArray(None)
+        traj_chosen_path: field_ref.Trajectory = field_ref.Trajectory(network_tables_util.get_entry("robot", "chosen_path").getDoubleArray([]), (255, 0, 0, 255))
+        traj_pathfinder: field_ref.Trajectory = field_ref.Trajectory(network_tables_util.get_entry("robot", "pathfinder").getDoubleArray([]), (0, 255, 0, 255))
+        traj_connector: field_ref.Trajectory = field_ref.Trajectory(network_tables_util.get_entry("robot", "connection_path").getDoubleArray([]), (0, 0, 255, 255))
 
-        if traj_chosen_path and traj_pathfinder:
-            trajectory_coords = traj_pathfinder + traj_chosen_path
+        trajectories = [traj_chosen_path, traj_pathfinder, traj_connector]
 
 
 last_nt_update = 0
@@ -260,6 +264,9 @@ def main():
         while not network_tables_util.is_connected():
             time.sleep(0.3)
         queue_graphics_update()
+
+    if USING_KEYLOGGER:
+        keylogger.attach_listener()
 
     # run program
     while dpg.is_dearpygui_running():
