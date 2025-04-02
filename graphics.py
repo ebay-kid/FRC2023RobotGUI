@@ -56,7 +56,7 @@ def update_graphics():
     dpg.set_item_height("drawlist", FIELD_HEIGHT_IMG)
     dpg.set_item_width("drawlist", FIELD_WIDTH_IMG)
     if dpg.does_alias_exist("drawlist"):
-        dpg.delete_item("drawlist", children_only       =True)
+        dpg.delete_item("drawlist", children_only=True)
 
     draw_background()
     draw_robot(real_robot)
@@ -162,9 +162,12 @@ def update_nt_values():
             real_robot.rot = raw_pose[2]
             queue_graphics_update()
 
-        traj_chosen_path: field_ref.Trajectory = field_ref.Trajectory(network_tables_util.get_entry("robot", "chosen_path").getDoubleArray([]), (255, 0, 0, 255))
-        traj_pathfinder: field_ref.Trajectory = field_ref.Trajectory(network_tables_util.get_entry("robot", "pathfinder").getDoubleArray([]), (0, 255, 0, 255))
-        traj_connector: field_ref.Trajectory = field_ref.Trajectory(network_tables_util.get_entry("robot", "connection_path").getDoubleArray([]), (0, 0, 255, 255))
+        traj_chosen_path: field_ref.Trajectory = field_ref.Trajectory(
+            network_tables_util.get_entry("robot", "chosen_path").getDoubleArray([]), (255, 0, 0, 255))
+        traj_pathfinder: field_ref.Trajectory = field_ref.Trajectory(
+            network_tables_util.get_entry("robot", "pathfinder").getDoubleArray([]), (0, 255, 0, 255))
+        traj_connector: field_ref.Trajectory = field_ref.Trajectory(
+            network_tables_util.get_entry("robot", "connection_path").getDoubleArray([]), (0, 0, 255, 255))
 
         trajectories = [traj_chosen_path, traj_pathfinder, traj_connector]
 
