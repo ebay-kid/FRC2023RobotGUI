@@ -32,6 +32,7 @@ game_scale = 1
 robot_coord_tag = 0
 scale_tag = 0
 mouse_coord_tag = 0
+numlock_enabled_tag = 0
 
 # Initialize and Values using NetworkTables
 team_color = True  # True = Blue, False = Red
@@ -147,8 +148,14 @@ def update_click_pos():
         latest_x = prev_x
         latest_y = prev_y
         return
-    dpg.set_value(mouse_coord_tag, "GOAL: X " + str(latest_x) + " Y " + str(latest_y))
+    # dpg.set_value(mouse_coord_tag, "GOAL: X " + str(latest_x) + " Y " + str(latest_y))
     queue_graphics_update()
+
+
+def update_numlock_text():
+    numlock_state = keylogger.get_numlock_state()
+    dpg.set_value(numlock_enabled_tag,
+                  "Numlock good? " + str(numlock_state) + (" IT IS BAD PLEASE FIX" if not numlock_state else ""))
 
 
 def update_nt_values():
@@ -201,10 +208,11 @@ def main():
         dpg.add_static_texture(width=width2, height=height2, default_value=dpg_image2, tag="robot_image")
         # dpg.add_static_texture(w, h, d, tag="robot_image")
     # create viewport
-    dpg.create_viewport(title='Team 3952', width=screen_width, height=screen_height)
+    dpg.create_viewport(title='Team 3952', width=int(screen_width * 1), height=int(screen_height * 0.9))
+    dpg.set_viewport_pos((0, 0))
     dpg.set_viewport_vsync(ENABLE_VSYNC)
     dpg.setup_dearpygui()
-    dpg.toggle_viewport_fullscreen()
+    # dpg.toggle_viewport_fullscreen()
     dpg.set_global_font_scale(3)
 
     # mouse wheel scaling
@@ -215,7 +223,7 @@ def main():
             game_scale = 1
         else:
             queue_graphics_update()
-        dpg.set_value(scale_tag, "SCALE " + str(round(game_scale, 2)) + "x")
+        # dpg.set_value(scale_tag, "SCALE " + str(round(game_scale, 2)) + "x")
 
     # basically an event handler
     with dpg.handler_registry():
@@ -230,15 +238,21 @@ def main():
             queue_graphics_update()
 
     # create window for text
-    with dpg.window(tag="ctlwindow", label="", no_close=True, min_size=(450, 250), pos=(screen_width / 2 + 20, 10)):
+    with dpg.window(tag="ctlwindow", label="", no_close=True, min_size=(370, 250), pos=(3 * screen_width / 4 + 65, 10)):
         global mouse_coord_tag
         global robot_coord_tag
         global scale_tag
-        fps_tag = dpg.add_text("FPS 0")
-        scale_tag = dpg.add_text("SCALE " + str(round(game_scale, 2)) + "x")
-        robot_coord_tag = dpg.add_text("ROBOT: X 0 Y 0")
-        mouse_coord_tag = dpg.add_text("GOAL: X 0 Y 0")
+        global numlock_enabled_tag
 
+        fps_tag = dpg.add_text("FPS 0")
+        # scale_tag = dpg.add_text("SCALE " + str(round(game_scale, 2)) + "x")
+        # robot_coord_tag = dpg.add_text("ROBOT: X 0 Y 0")
+        # mouse_coord_tag = dpg.add_text("GOAL: X 0 Y 0")
+        numlock_state = keylogger.get_numlock_state()
+        numlock_enabled_tag = dpg.add_text(
+            "Numlock good? " + str(numlock_state) + (" IT IS BAD PLEASE FIX" if not numlock_state else ""), wrap=350)
+
+    """
     def clicked(num):
         def handle_click():
             dpg.set_value("checkbox1", num == 1)
@@ -249,6 +263,7 @@ def main():
 
         return handle_click
 
+    
     # create window for control buttons and stuff
     with dpg.window(tag="ctlwindow2", label="", no_close=True, min_size=(450, 250), pos=(screen_width / 2 + 20, 250)):
         # Add 5 checkboxes named 1 to 5. If you click on one, then the others will be unchecked. When a checkbox is clicked, set a global variable to the int value of the checkbox.
@@ -258,6 +273,7 @@ def main():
             dpg.add_checkbox(label="3", callback=clicked(3), tag="checkbox3")
             dpg.add_checkbox(label="4", callback=clicked(4), tag="checkbox4")
             dpg.add_checkbox(label="5", callback=clicked(5), tag="checkbox5")
+    """
 
     # show viewport
     dpg.show_viewport()
@@ -277,9 +293,13 @@ def main():
 
         dpg.set_value(fps_tag, update_fps())
         robot_pose_field_x, robot_pose_field_y, robot_pose_field_rot = real_robot.x, real_robot.y, real_robot.rot
+        """
         dpg.set_value(robot_coord_tag,
-                      "ROBOT: X " + str(robot_pose_field_x) + " Y " + str(robot_pose_field_y) + " ROT " + str(
-                          robot_pose_field_rot))
+                      "ROBOT: X " + str(round(robot_pose_field_x, 2)) + " Y " + str(
+                          round(robot_pose_field_y, 2)) + " ROT " + str(
+                          round(robot_pose_field_rot, 2)))
+                          """
+        update_numlock_text()
         current_time = time.time()
         if current_time - last_nt_update > 1 / 20:
             # print("last update", time.time() - last_nt_update)

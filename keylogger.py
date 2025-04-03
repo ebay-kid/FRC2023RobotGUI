@@ -10,6 +10,13 @@ from constants import USING_NETWORK_TABLES
 VERBOSE = True
 
 
+def get_numlock_state():
+    import ctypes
+    dll = ctypes.WinDLL("User32.dll")
+    vk_numlock = 0x90
+    return dll.GetKeyState(vk_numlock) == 1
+
+
 def map_char_pressed_to_upload_value(char_pressed):
     match char_pressed:
         case '/':
@@ -38,6 +45,7 @@ def publish_key_press(char_pressed):
 
 
 def on_press(key: pynput.keyboard.Key | pynput.keyboard.KeyCode):
+    print(get_numlock_state())
     try:
         print("key", key)
         if 97 <= key.vk <= 105:
