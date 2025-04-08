@@ -208,7 +208,7 @@ def main():
         dpg.add_static_texture(width=width2, height=height2, default_value=dpg_image2, tag="robot_image")
         # dpg.add_static_texture(w, h, d, tag="robot_image")
     # create viewport
-    dpg.create_viewport(title='Team 3952', width=int(screen_width * 1), height=int(screen_height * 0.9))
+    dpg.create_viewport(title='Team 3952', width=int(screen_width * 1), height=int(screen_height * 0.7))
     dpg.set_viewport_pos((0, 0))
     dpg.set_viewport_vsync(ENABLE_VSYNC)
     dpg.setup_dearpygui()
